@@ -120,12 +120,26 @@
       var peer = new window.Peer(PEER_CONFIG); // random client id
       var settled = false;
 
+      // Don't hang forever on "joining" — if the connection can't be established
+      // (wrong code, host left, or NAT can't be traversed) surface a clear error.
+      var JOIN_TIMEOUT_MS = 15000;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        try { peer.destroy(); } catch (e) {}
+        var err = new Error("Couldn't connect to room " + code +
+          ". Check the code, or ask the host to share the link again.");
+        try { toast("Couldn't connect — check the code or get a fresh link"); } catch (e) {}
+        onError(err); onClose(); reject(err);
+      }, JOIN_TIMEOUT_MS);
+
       peer.on('open', function (myId) {
         var conn = peer.connect(peerIdFor(code), { reliable: true });
         var opened = false;
 
         conn.on('open', function () {
           opened = true;
+          clearTimeout(timer);
           var api = {
             myId: myId,
             send: function (msg) { try { conn.send(JSON.stringify(msg)); } catch (e) {} },
@@ -142,7 +156,8 @@
         var closed = false;
         function dropped() {
           if (closed) return; closed = true;
-          if (!opened && !settled) { reject(new Error('Could not reach room ' + code)); }
+          clearTimeout(timer);
+          if (!opened && !settled) { settled = true; reject(new Error('Could not reach room ' + code)); }
           onClose();
         }
         conn.on('close', dropped);
@@ -151,6 +166,8 @@
 
       peer.on('error', function (err) {
         if (!settled) {
+          settled = true;
+          clearTimeout(timer);
           // peer-unavailable => no such room
           var msg = (err && err.type === 'peer-unavailable')
             ? new Error('Room ' + code + ' not found') : err;
