@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ASCENT — climb the lying tower</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{--bg:#0a0c18;--ink:#fff;--dim:#8a91ad;--gold:#ffd23f;--cyan:#3ee6e0;--pink:#ff4d8d;--green:#21d07a;--red:#ff4d5e;--line:#23263a;--panel:#141728}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{height:100%;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;position:fixed;width:100%;touch-action:none}
+  #wrap{position:relative;height:100%;width:100%;max-width:560px;margin:0 auto;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;background:linear-gradient(180deg,#0a0c18,#10132a 40%,#1a1330 100%)}
+
+  /* HUD */
+  #hud{position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5;font-variant-numeric:tabular-nums}
+  #hud .h{font-size:30px;font-weight:900;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  #hud .hl{font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  #hud .sh{font-size:18px;font-weight:800;color:var(--gold);text-align:right}
+  #floorTag{position:absolute;top:54px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--cyan);font-weight:700;letter-spacing:1px;opacity:0;transition:opacity .3s;z-index:5;pointer-events:none}
+  #pauseBtn{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:20px;background:rgba(20,23,40,.7);border:1px solid var(--line);color:#fff;width:38px;height:38px;border-radius:11px;z-index:6;cursor:pointer;display:none}
+
+  /* narrator toast */
+  #toast{position:absolute;left:50%;top:30%;transform:translate(-50%,0);max-width:78%;background:rgba(10,10,18,.92);border:1px solid var(--pink);color:#fff;padding:10px 15px;border-radius:14px;font-size:13.5px;font-weight:600;text-align:center;z-index:7;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+  #toast.show{opacity:1;transform:translate(-50%,-6px)}
+  #toast b{color:var(--pink)}
+
+  /* overlays */
+  .ov{position:absolute;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:rgba(6,7,16,.9);backdrop-filter:blur(4px);text-align:center}
+  .ov.show{display:flex;animation:f .2s}
+  @keyframes f{from{opacity:0}to{opacity:1}}
+  .logo{font-size:40px;font-weight:900;letter-spacing:4px;background:linear-gradient(180deg,#fff,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 40px rgba(62,230,224,.3)}
+  .tag{color:var(--dim);font-size:13px;margin:4px 0 22px;font-weight:600}
+  .menu-btn{width:100%;max-width:300px;padding:15px;border:0;border-radius:14px;font-weight:800;font-size:16px;cursor:pointer;margin-bottom:11px;color:#0a0c18;background:linear-gradient(180deg,var(--cyan),#19b3ad);box-shadow:0 5px 0 #0d7d78}
+  .menu-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #0d7d78}
+  .menu-btn.alt{background:linear-gradient(180deg,var(--gold),#e6951c);box-shadow:0 5px 0 #b8741a;color:#1a1300}
+  .menu-btn.alt:active{box-shadow:0 2px 0 #b8741a}
+  .menu-btn.ghost{background:#1a1d30;color:#cfd3e6;box-shadow:0 5px 0 #0c0e1c;border:1px solid var(--line)}
+  .menu-btn.ghost:active{box-shadow:0 2px 0 #0c0e1c}
+  .menu-row{display:flex;gap:10px;width:100%;max-width:300px}
+  .menu-row .menu-btn{flex:1}
+  .stat-line{color:var(--dim);font-size:12px;margin-top:6px}
+  .stat-line b{color:var(--gold)}
+
+  /* power pick cards */
+  #powerOv h2{font-size:20px;margin-bottom:4px}
+  #powerOv .sub{color:var(--dim);font-size:12px;margin-bottom:18px}
+  .cards{display:flex;gap:10px;width:100%;max-width:440px}
+  .pcard{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 10px;cursor:pointer;transition:.12s;display:flex;flex-direction:column;align-items:center;gap:7px}
+  .pcard:active{transform:scale(.96)}
+  .pcard:hover{border-color:var(--cyan)}
+  .pcard .ic{font-size:34px}
+  .pcard .pn{font-size:14px;font-weight:800}
+  .pcard .pd{font-size:11px;color:var(--dim);line-height:1.35}
+  .pcard .lv{font-size:10px;color:var(--cyan);font-weight:700}
+
+  /* game over */
+  #goOv .big{font-size:46px;font-weight:900;line-height:1}
+  #goOv .reach{color:var(--gold);font-size:14px;margin:2px 0 2px}
+  #goOv .shards{color:var(--gold);font-size:15px;font-weight:800;margin:8px 0 4px}
+  #goOv .narr{color:var(--pink);font-size:13.5px;font-weight:600;max-width:300px;margin:10px 0 18px}
+
+  /* store */
+  #storeOv h2{font-size:22px;margin-bottom:2px}
+  #storeOv .bank{color:var(--gold);font-weight:800;font-size:15px;margin-bottom:14px}
+  .store-list{width:100%;max-width:380px;overflow-y:auto;max-height:54vh;display:flex;flex-direction:column;gap:9px}
+  .sitem{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:11px 13px;text-align:left}
+  .sitem .si{font-size:26px}
+  .sitem .sb{flex:1}
+  .sitem .sn{font-size:14px;font-weight:800}
+  .sitem .sd{font-size:11px;color:var(--dim);line-height:1.3}
+  .sitem .buy{border:0;border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px;cursor:pointer;background:linear-gradient(180deg,var(--gold),#e6951c);color:#1a1300;white-space:nowrap}
+  .sitem .buy:disabled{filter:grayscale(1);opacity:.5}
+  .sitem.owned .buy{background:var(--green);color:#fff}
+
+  /* leaderboard */
+  .lb{width:100%;max-width:360px;max-height:46vh;overflow-y:auto;margin-bottom:14px}
+  .lrow{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;font-size:13px}
+  .lrow:nth-child(odd){background:rgba(255,255,255,.03)}
+  .lrow.me{background:rgba(62,230,224,.14);border:1px solid var(--cyan)}
+  .lrow .rk{width:24px;color:var(--dim);font-weight:800}
+  .lrow .nm{flex:1;font-weight:600}
+  .lrow .ht{color:var(--gold);font-weight:800}
+
+  /* touch hint zones (invisible) */
+  #zoneL,#zoneR,#zoneC{position:absolute;top:0;bottom:0;z-index:3}
+  #zoneL{left:0;width:40%}#zoneR{right:0;width:40%}#zoneC{left:40%;width:20%}
+
+  .pill{display:inline-block;background:#1c2036;border:1px solid var(--line);color:var(--cyan);font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;margin-bottom:10px}
+  .howto{color:var(--dim);font-size:12.5px;line-height:1.7;max-width:300px;margin-bottom:18px;text-align:left}
+  .howto b{color:#fff}
+  .x{position:absolute;top:14px;right:16px;font-size:24px;color:var(--dim);cursor:pointer;z-index:25}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div><div class="hl">Height</div><div class="h"><span id="hHeight">0</span>m</div></div>
+    <div><div class="hl">Shards</div><div class="sh">◆ <span id="hShards">0</span></div></div>
+  </div>
+  <button id="pauseBtn">⏸</button>
+  <div id="floorTag"></div>
+  <div id="toast"></div>
+
+  <div id="zoneL"></div><div id="zoneC"></div><div id="zoneR"></div>
+
+  <!-- MENU -->
+  <div class="ov show" id="menuOv">
+    <div class="logo">ASCENT</div>
+    <div class="tag">climb the tower that lies to you</div>
+    <div id="chalBanner" style="display:none;background:rgba(255,77,141,.12);border:1px solid var(--pink);border-radius:14px;padding:12px 14px;margin-bottom:14px;max-width:320px">
+      <div style="font-size:14px;font-weight:700">⚔ <span id="chalName">Someone</span> challenges you</div>
+      <div style="font-size:12px;color:var(--dim);margin:3px 0 9px">Climb the same tower — beat <b id="chalH" style="color:var(--pink)">0</b>m</div>
+      <button class="menu-btn alt" id="acceptChal" style="margin:0;padding:11px">⚔ ACCEPT DUEL</button>
+    </div>
+    <button class="menu-btn" id="playBtn">▲ CLIMB (Endless)</button>
+    <button class="menu-btn alt" id="dailyBtn">📅 Daily Tower</button>
+    <div class="menu-row">
+      <button class="menu-btn ghost" id="storeBtn">🛠 Forge</button>
+      <button class="menu-btn ghost" id="howBtn">❔ How</button>
+    </div>
+    <div class="stat-line">Best: <b id="mBest">0</b>m · Shards: <b id="mShards">0</b> · Runs: <b id="mRuns">0</b></div>
+    <div class="stat-line" style="margin-top:10px;font-size:11px">🔇 <span id="soundLbl" style="cursor:pointer;text-decoration:underline">sound on</span></div>
+  </div>
+
+  <!-- HOW -->
+  <div class="ov" id="howOv">
+    <span class="x" data-close="howOv">✕</span>
+    <div class="logo" style="font-size:26px">HOW TO CLIMB</div>
+    <div class="howto" style="margin-top:16px">
+      <b>Move:</b> tap/hold left or right side of the screen (or ← → / A D keys). You wrap around the edges.<br><br>
+      <b>Climb:</b> you bounce automatically on platforms. Land on them while falling.<br><br>
+      <b>Double-jump:</b> tap the <b>center</b> strip (or ↑ / Space) — only if you've unlocked the power.<br><br>
+      <b>⚠ The Architect cheats:</b> some platforms <b>crumble</b>, some are <b>fake</b> (vanish!), red ones have <b>spikes</b>. Learn them.<br><br>
+      <b>◆ Shards</b> buy permanent upgrades in the <b>Forge</b>. Every floor you pick a power. Don't fall.
+    </div>
+    <button class="menu-btn" data-close="howOv">GOT IT</button>
+  </div>
+
+  <!-- POWER PICK -->
+  <div class="ov" id="powerOv">
+    <span class="pill" id="floorPill">FLOOR 1 CLEARED</span>
+    <h2>Choose a Power</h2>
+    <div class="sub" id="archPick">The Architect grins. "Pick. I'll allow it… probably."</div>
+    <div class="cards" id="powerCards"></div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="ov" id="goOv">
+    <div style="font-size:34px">💀</div>
+    <div class="hl" style="color:var(--dim);letter-spacing:2px">YOU FELL AT</div>
+    <div class="big"><span id="goHeight">0</span><span style="font-size:24px">m</span></div>
+    <div class="reach" id="goBest"></div>
+    <div class="shards" id="goShards">◆ +0 shards</div>
+    <div class="narr" id="goNarr"></div>
+    <div id="goChalLine" style="display:none;font-size:15px;font-weight:800;margin:0 0 14px"></div>
+    <div id="goRankWrap" style="display:none;width:100%;align-items:center;flex-direction:column"></div>
+    <button class="menu-btn" id="retryBtn">↻ CLIMB AGAIN</button>
+    <div class="menu-row">
+      <button class="menu-btn ghost" id="goStoreBtn">🛠 Forge</button>
+      <button class="menu-btn ghost" id="goMenuBtn">Menu</button>
+    </div>
+    <button class="menu-btn alt" id="goChalBtn" style="max-width:300px">⚔ Challenge a friend to beat this</button>
+    <button class="menu-btn ghost" id="shareBtn" style="max-width:300px">📣 Brag to your group</button>
+  </div>
+
+  <!-- STORE / FORGE -->
+  <div class="ov" id="storeOv">
+    <span class="x" data-close="storeOv">✕</span>
+    <h2>🛠 The Forge</h2>
+    <div class="bank">◆ <span id="forgeBank">0</span> shards</div>
+    <div class="store-list" id="storeList"></div>
+    <button class="menu-btn" data-close="storeOv" style="margin-top:14px">Done</button>
+  </div>
+
+  <!-- DAILY LEADERBOARD (pre-run) -->
+  <div class="ov" id="dailyOv">
+    <span class="x" data-close="dailyOv">✕</span>
+    <div class="logo" style="font-size:24px">📅 DAILY TOWER</div>
+    <div class="tag" id="dailyDate" style="margin:6px 0 8px">—</div>
+    <div class="stat-line" style="margin-bottom:12px">Same tower for everyone today. Your best: <b id="dailyBest">0</b>m</div>
+    <div class="lb" id="dailyLb"></div>
+    <button class="menu-btn alt" id="dailyPlayBtn">▲ CLIMB TODAY'S TOWER</button>
+    <button class="menu-btn ghost" data-close="dailyOv" style="max-width:300px">Back</button>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="ov" id="pauseOv">
+    <div class="logo" style="font-size:28px">PAUSED</div>
+    <div class="tag" id="pauseSub">the tower waits.</div>
+    <button class="menu-btn" id="resumeBtn">▶ Resume</button>
+    <button class="menu-btn ghost" id="quitBtn" style="max-width:300px">Quit to Menu</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   ASCENT — roguelike rage-climber (single file, browser + Telegram)
+   ===================================================================== */
+
+/* ---------- Telegram wrapper (safe + browser fallback) ---------- */
+const TG=(function(){
+  const wa=(window.Telegram&&window.Telegram.WebApp)?window.Telegram.WebApp:null;
+  const inTG=!!(wa&&wa.platform&&wa.platform!=='unknown'&&wa.initData!==undefined);
+  const s=fn=>{try{return fn();}catch(e){}};
+  return{
+    inTG,
+    ready(){if(inTG)s(()=>{wa.ready();wa.expand();wa.requestFullscreen&&s(()=>wa.requestFullscreen());wa.setHeaderColor&&s(()=>wa.setHeaderColor('#0a0c18'));wa.setBackgroundColor&&s(()=>wa.setBackgroundColor('#0a0c18'));});},
+    notify(t){if(inTG&&wa.HapticFeedback)s(()=>wa.HapticFeedback.notificationOccurred(t));},
+    impact(t){if(inTG&&wa.HapticFeedback)s(()=>wa.HapticFeedback.impactOccurred(t));},
+    sel(){if(inTG&&wa.HapticFeedback)s(()=>wa.HapticFeedback.selectionChanged());},
+    get(k,cb){if(inTG&&wa.CloudStorage){s(()=>wa.CloudStorage.getItem(k,(e,v)=>cb(e?null:v)));return;}try{cb(localStorage.getItem(k));}catch(e){cb(null);}},
+    set(k,v){if(inTG&&wa.CloudStorage){s(()=>wa.CloudStorage.setItem(k,String(v)));return;}try{localStorage.setItem(k,String(v));}catch(e){}},
+    share(t){if(inTG&&wa.switchInlineQuery){s(()=>wa.switchInlineQuery(t,['users','groups']));return true;}return false;}
+  };
+})();
+
+/* ---------- audio ---------- */
+const SFX=(function(){let ctx=null,on=true;function ac(){if(!ctx)try{ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return ctx;}
+  function t(f,d,ty,v){if(!on)return;const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=ty||'sine';o.frequency.value=f;g.gain.value=v||.06;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+(d||.12));o.stop(c.currentTime+(d||.12));}
+  return{setOn(v){on=v;},isOn(){return on;},
+    boop(){t(660,.06,'triangle',.05);},spring(){t(400,.05,'square',.06);setTimeout(()=>t(900,.1,'square',.05),40);},
+    coin(){t(1568,.05,'square',.04);setTimeout(()=>t(2093,.07,'square',.04),45);},
+    pow(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>t(f,.12,'triangle',.06),i*70));},
+    die(){t(200,.15,'sawtooth',.08);setTimeout(()=>t(120,.3,'sawtooth',.08),120);},
+    crumble(){t(140,.12,'sawtooth',.05);}};
+})();
+
+/* ---------- seeded RNG ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* ---------- persistent meta ---------- */
+const META={shards:0,best:0,runs:0,unlocks:{},dailyDate:'',dailyBest:0,ghost:null,sound:true};
+const UNLOCKS=[
+  {id:'boots',ic:'🥾',n:'Reinforced Boots',d:'+8% base jump height. Forever.',cost:60,max:5,per:0.06},
+  {id:'feather',ic:'🪶',n:'Featherweight',d:'-6% gravity. More reaction time.',cost:120,max:4,per:0.06},
+  {id:'heart',ic:'❤️',n:'Spare Heart',d:'Start every run with +1 shield.',cost:160,max:3},
+  {id:'charm',ic:'🍀',n:'Lucky Charm',d:'Begin each run with a random power.',cost:240,max:1},
+  {id:'treasure',ic:'💎',n:'Treasure Sense',d:'+40% shards spawn. Stacks.',cost:140,max:3,per:0.4},
+  {id:'head',ic:'🚀',n:'Head Start',d:'Skip the first 250m each run.',cost:300,max:2,per:250},
+];
+function unlockLv(id){return META.unlocks[id]||0;}
+
+/* ---------- powers (in-run, picked each floor) ---------- */
+const POWERS=[
+  {id:'spring',ic:'🦿',n:'Spring Legs',d:'+12% jump',apply:r=>r.jumpMult+=0.12},
+  {id:'feather',ic:'🪶',n:'Slow Fall',d:'-12% gravity',apply:r=>r.gravMult=Math.max(0.5,r.gravMult-0.12)},
+  {id:'shield',ic:'🛡',n:'Shield',d:'Survive one fall',apply:r=>r.shields++},
+  {id:'magnet',ic:'🧲',n:'Magnet',d:'+pull shards',apply:r=>r.magnet+=130},
+  {id:'double',ic:'⏫',n:'Double Jump',d:'+1 air jump',apply:r=>r.maxAir++},
+  {id:'luck',ic:'🍀',n:'Shard Luck',d:'+60% shards',apply:r=>r.shardMult+=0.6},
+  {id:'wide',ic:'📏',n:'Wide Steps',d:'wider platforms',apply:r=>r.widBonus+=16},
+];
+function powerById(id){return POWERS.find(p=>p.id===id);}
+
+/* ---------- Architect taunts ---------- */
+const T_PICK=['"Pick. I built them all to disappoint you anyway."','"Ooh, strategy. Adorable."','"Choose wisely. Or don\'t. I win either way."','"This one\'s a trap. Or is it? Tap to find out."','"I let you have a gift. Note the word \'let\'."'];
+const T_DEATH=['"Gravity: 1. You: 0. As designed."','"So close. I moved that platform on purpose."','"Falling is just climbing for honest people."','"I\'ll keep your shards. Compensation for my time."','"Come back. We both know you will."','"That fall? Chef\'s kiss."','"You almost impressed me. Almost."','"Skill issue. Documented and archived."'];
+const T_HIGH=['"…huh. You\'re actually getting good. Annoying."','"New record. I\'ll have to cheat harder."','"Don\'t let it go to your head. I control the head."'];
+const T_BACK=['"Back already? The tower remembers your last fall."','"I kept the lights on for you. And the spikes."','"You left at {b}m. Statistically, you fall sooner today."'];
+function pickArr(a,seed){return a[Math.abs(seed)%a.length];}
+
+/* ---------- async friend duels (no server: tower travels in the link) ---------- */
+const MY_NAME=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user&&window.Telegram.WebApp.initDataUnsafe.user.first_name)||'A climber';
+function b64urlEnc(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function b64urlDec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');try{return decodeURIComponent(escape(atob(s)));}catch(e){return null;}}
+function makeChalLink(seed,h){const payload=JSON.stringify({s:seed>>>0,h:Math.floor(h),n:MY_NAME.slice(0,14)});return location.origin+location.pathname+'?c='+b64urlEnc(payload);}
+function parseChal(){try{const c=new URLSearchParams(location.search).get('c');if(!c)return null;const j=b64urlDec(c);if(!j)return null;const o=JSON.parse(j);if(typeof o.s!=='number'||typeof o.h!=='number')return null;o.n=String(o.n||'Someone').slice(0,14);o.s=o.s>>>0;o.h=Math.floor(o.h);return o;}catch(e){return null;}}
+
+/* ---------- DOM ---------- */
+const $=id=>document.getElementById(id);
+const cv=$('c');const ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){const r=$('wrap').getBoundingClientRect();W=r.width;H=r.height;DPR=Math.min(2,window.devicePixelRatio||1);cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+window.addEventListener('resize',resize);
+
+/* ---------- physics constants (CSS px / sec) ---------- */
+const GRAV=2700, JUMP=-1180, SPRINGJUMP=-1900, MOVE=560, PPM=12; // px per meter
+const PT={NORMAL:0,MOVING:1,CRUMBLE:2,FAKE:3,SPRING:4,SPIKE:5};
+
+/* ---------- game state ---------- */
+let G=null; // current run
+let mode='menu'; // menu | play | pause | over
+let running=false;
+
+function freshRun(daily, chal){
+  const seed = chal ? (chal.s>>>0) : (daily?hashStr('ascent-'+todayKey()):(Math.floor(Math.random()*1e9)>>>0));
+  const r={
+    daily, seed, rng:mulberry32(seed),
+    chal:chal||null, challengeName:chal?chal.n:'', challengeH:chal?chal.h:0, beat:false,
+    jumpMult:1, gravMult:1, shields:0, magnet:0, maxAir:0, shardMult:1, widBonus:0,
+    // apply meta
+  };
+  r.jumpMult += unlockLv('boots')*0.06;
+  r.gravMult = Math.max(0.5, 1 - unlockLv('feather')*0.06);
+  r.shields  += unlockLv('heart');
+  r.shardMult+= unlockLv('treasure')*0.4;
+  const head = unlockLv('head')*250;
+
+  // world: y down positive; up is negative. start at y=0
+  const startY=0;
+  r.player={x:W/2,y:-(head*PPM)-200,vx:0,vy:0,prevY:-(head*PPM)-200,air:1,usedAir:0,w:30,h:34,face:1,squash:0};
+  r.maxAir=0;
+  r.camTop = r.player.y-H*0.58;
+  r.peak = head;             // meters climbed (head start counts)
+  r.minY = r.player.y;
+  r.shards=0;
+  r.platforms=[];
+  r.collectibles=[];
+  r.spikesHaz=[];
+  r.particles=[];
+  r.topY=0;                  // most-negative platform y generated
+  r.nextFloorAt = 250 + head; // first power pick height
+  r.floor=0;
+  r.dead=false;
+  r.time=0;
+  r.ghostSamples=[];         // {t,h}
+  r.lastSample=0;
+  r.input={left:false,right:false};
+  r.shake=0;
+  // seed first platform under player + initial field
+  r.platforms.push({x:W/2-50,y:0,w:100,type:PT.NORMAL,alive:true});
+  r.topY=0;
+  generateUpTo(r, r.camTop-H);
+  // pick run ghost = best of (your daily ghost if daily) else stored ghost
+  r.ghost = META.ghost && (!daily || META.ghost.daily===todayKey()) ? META.ghost : null;
+  // charm
+  if(unlockLv('charm')){ const p=POWERS[Math.floor(r.rng()*POWERS.length)]; p.apply(r); }
+  return r;
+}
+
+/* difficulty 0..1 — flat & forgiving for the first ~120m, then a long gentle ramp */
+function diff(h){return Math.min(1, Math.max(0,(h-120)/3200));}
+const MAXGAP=200; // hard cap: a jump is ALWAYS reachable on base stats (maxRise≈257)
+
+function generateUpTo(r, targetY){
+  // generate platforms with decreasing y until topY < targetY
+  while(r.topY > targetY){
+    const genH = (-r.topY)/PPM;          // height (m) of the frontier we're building
+    const d=diff(genH);
+    let gap = 78 + d*140 + r.rng()*40;    // close & easy early, spreads with difficulty
+    gap = Math.min(MAXGAP, gap);          // never unreachable
+    const ny = r.topY - gap;
+    const baseW = 82 - d*32 + (r.widBonus||0);  // wide early, narrows high up
+    const w = Math.max(48, baseW + r.rng()*26);
+    const x = 8 + r.rng()*(W-16-w);
+    // type selection — hazards UNLOCK by height so the start stays gentle
+    let type=PT.NORMAL, roll=r.rng();
+    if(roll < 0.05 + d*0.04){ type=PT.SPRING; }                                   // helpful, any height
+    else if(genH>150 && roll < 0.06 + d*0.18){ type=PT.MOVING; }
+    else if(genH>260 && roll < 0.10 + d*0.20){ type=PT.CRUMBLE; }
+    else if(genH>460 && roll < 0.07 + d*0.16){ type=PT.FAKE; }
+    else if(genH>680 && roll < 0.06 + d*0.16){ type=PT.SPIKE; }
+    const p={x,y:ny,w,type,alive:true,touched:false};
+    if(type===PT.MOVING){p.mvx=(r.rng()<.5?-1:1)*(50+d*80);p.x0=8;p.x1=W-8-w;}
+    r.platforms.push(p);
+    r.topY=ny;
+    // shards: float above some platforms
+    if(r.rng() < (0.28*r.shardMult) && type!==PT.SPIKE && type!==PT.FAKE){
+      r.collectibles.push({x:x+w/2,y:ny-26-r.rng()*40,got:false});
+    }
+    // hanging spike hazard only high up
+    if(genH>900 && r.rng()<0.04+d*0.08){
+      const sw=26+r.rng()*30; r.spikesHaz.push({x:8+r.rng()*(W-16-sw),y:ny-gap*0.5,w:sw,h:16});
+    }
+  }
+  // cull below screen
+  const cullY=r.camTop+H+120;
+  r.platforms=r.platforms.filter(p=>p.y<cullY);
+  r.collectibles=r.collectibles.filter(c=>c.y<cullY&&!c.got);
+  r.spikesHaz=r.spikesHaz.filter(s=>s.y<cullY);
+}
+
+/* ---------- input ---------- */
+function bindInput(){
+  const set=(side,v)=>{if(!G)return;if(side==='L')G.input.left=v;if(side==='R')G.input.right=v;};
+  const zl=$('zoneL'),zr=$('zoneR'),zc=$('zoneC');
+  const press=(el,side)=>{
+    el.addEventListener('touchstart',e=>{e.preventDefault();if(side==='C')tryDouble();else set(side,true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();if(side!=='C')set(side,false);},{passive:false});
+    el.addEventListener('mousedown',e=>{if(side==='C')tryDouble();else set(side,true);});
+    el.addEventListener('mouseup',()=>{if(side!=='C')set(side,false);});
+    el.addEventListener('mouseleave',()=>{if(side!=='C')set(side,false);});
+  };
+  press(zl,'L');press(zr,'R');press(zc,'C');
+  window.addEventListener('keydown',e=>{
+    if(mode!=='play')return;
+    if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){G.input.left=true;}
+    if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){G.input.right=true;}
+    if(e.key===' '||e.key==='ArrowUp'||e.key==='w'||e.key==='W'){tryDouble();e.preventDefault();}
+    if(e.key==='Escape')pauseGame();
+  });
+  window.addEventListener('keyup',e=>{
+    if(!G)return;
+    if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A')G.input.left=false;
+    if(e.key==='ArrowRight'||e.key==='d'||e.key==='D')G.input.right=false;
+  });
+}
+function tryDouble(){
+  if(mode!=='play'||!G)return;
+  if(G.player.air>0 && G.player.usedAir<G.maxAir){
+    G.player.vy=JUMP*G.jumpMult*0.92; G.player.usedAir++; SFX.boop(); TG.impact('soft'); G.player.squash=1;
+  }
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  const r=G,p=r.player;
+  r.time+=dt;
+  // horizontal
+  let dir=(r.input.right?1:0)-(r.input.left?1:0);
+  p.vx = dir*MOVE;
+  if(dir!==0)p.face=dir;
+  p.x += p.vx*dt;
+  if(p.x<0)p.x+=W; if(p.x>W)p.x-=W;
+  // vertical
+  p.prevY=p.y;
+  p.vy += GRAV*r.gravMult*dt;
+  p.y  += p.vy*dt;
+  if(p.squash>0)p.squash=Math.max(0,p.squash-dt*4);
+  // moving platforms
+  for(const pl of r.platforms){ if(pl.type===PT.MOVING&&pl.alive){ pl.x+=pl.mvx*dt; if(pl.x<pl.x0){pl.x=pl.x0;pl.mvx*=-1;} if(pl.x>pl.x1){pl.x=pl.x1;pl.mvx*=-1;} } }
+  // collision (only when falling, one-way)
+  if(p.vy>0){
+    const feet=p.y, pfeet=p.prevY, cx=p.x, hw=p.w/2;
+    for(const pl of r.platforms){
+      if(!pl.alive)continue;
+      const top=pl.y;
+      // swept test: crossed the platform top this frame (no tunneling)
+      if(pfeet<=top+2 && feet>=top){
+        if(cx+hw>pl.x && cx-hw<pl.x+pl.w){
+          handleLand(pl);
+          break;
+        }
+      }
+    }
+  }
+  // air state: are we currently "grounded-ish"? treat as airborne always except moment of bounce
+  p.air = 1; // always allow double-jump logic; usedAir resets on bounce
+  // spikes hazard
+  for(const s of r.spikesHaz){ if(p.x+p.w/2>s.x&&p.x-p.w/2<s.x+s.w&&feetIn(p,s.y,s.y+s.h)){ killOrShield(); break; } }
+  // collectibles + magnet
+  for(const c of r.collectibles){
+    if(c.got)continue;
+    let dx=c.x-p.x,dy=c.y-p.y,dist=Math.hypot(dx,dy);
+    if(r.magnet>0&&dist<r.magnet){ c.x-=dx*0.18; c.y-=dy*0.18; }
+    if(dist<26){ c.got=true; r.shards++; SFX.coin(); TG.sel(); spawnParticles(c.x,c.y,'#ffd23f',6); }
+  }
+  // camera up only
+  const want=p.y-H*0.58;
+  if(want<r.camTop)r.camTop=want;
+  if(p.y<r.minY){r.minY=p.y;}
+  r.peak = (-r.minY)/PPM;   // meters climbed = highest point reached
+  // duel: crossed the friend's mark
+  if(r.chal && !r.beat && r.peak>=r.challengeH){ r.beat=true; narrate('🏆 "You passed '+r.challengeName+'! Now don\'t choke."'); TG.notify('success'); SFX.pow(); flashFloor('🏆 Passed '+r.challengeName+'!'); }
+  // generate ahead
+  generateUpTo(r, r.camTop-H);
+  // ghost sampling
+  if(r.time-r.lastSample>=0.12){ r.lastSample=r.time; r.ghostSamples.push({t:+r.time.toFixed(2),h:Math.floor(r.peak)}); }
+  // floor / power pick
+  if(r.peak>=r.nextFloorAt){ r.floor++; r.nextFloorAt += 300 + r.floor*40; offerPowers(); return; }
+  // death: fell below screen
+  if(p.y - r.camTop > H+40){ killOrShield(true); }
+  // particles
+  for(const pt of r.particles){pt.x+=pt.vx*dt;pt.y+=pt.vy*dt;pt.vy+=900*dt;pt.life-=dt;}
+  r.particles=r.particles.filter(pt=>pt.life>0);
+  if(r.shake>0)r.shake=Math.max(0,r.shake-dt*4);
+}
+function feetIn(p,a,b){return p.y>=a&&p.y<=b;}
+function handleLand(pl){
+  const r=G,p=r.player;
+  if(pl.type===PT.SPIKE){ killOrShield(); return; }
+  if(pl.type===PT.FAKE){ pl.alive=false; SFX.crumble(); spawnParticles(p.x,pl.y,'#6b5bff',8); narrate(pickArr(['"Fake. Obviously."','"That one was never real. Like my praise."'],r.floor+ (p.x|0))); TG.impact('rigid'); r.shake=1; return; }
+  // bounce
+  p.y=pl.y;
+  if(pl.type===PT.SPRING){ p.vy=SPRINGJUMP*r.jumpMult; SFX.spring(); TG.impact('medium'); p.squash=1; spawnParticles(p.x,pl.y,'#3ee6e0',6); }
+  else { p.vy=JUMP*r.jumpMult; SFX.boop(); TG.impact('light'); p.squash=1; }
+  p.usedAir=0;
+  if(pl.type===PT.CRUMBLE){ pl.touched=true; setTimeout(()=>{pl.alive=false;},90); SFX.crumble(); }
+}
+function killOrShield(fell){
+  const r=G,p=r.player;
+  if(r.dead)return;
+  if(r.shields>0 && fell){ r.shields--; p.vy=JUMP*r.jumpMult*1.15; p.y=r.camTop+H*0.5; TG.notify('warning'); SFX.spring(); narrate('🛡 "Shield burned. You owe me."'); spawnParticles(p.x,p.y,'#21d07a',12); return; }
+  if(r.shields>0 && !fell){ r.shields--; TG.notify('warning'); SFX.crumble(); narrate('🛡 "Shield ate that spike."'); p.vy=JUMP*r.jumpMult; spawnParticles(p.x,p.y,'#21d07a',10); return; }
+  die();
+}
+function spawnParticles(x,y,col,n){for(let i=0;i<n;i++)G.particles.push({x,y,vx:(Math.random()*2-1)*180,vy:(Math.random()*2-1)*180-60,life:.5+Math.random()*.3,col});}
+
+/* ---------- powers pick ---------- */
+function offerPowers(){
+  mode='pause'; running=false;
+  $('pauseBtn').style.display='none';
+  $('floorPill').textContent='FLOOR '+G.floor+' CLEARED · '+Math.floor(G.peak)+'m';
+  $('archPick').textContent=pickArr(T_PICK,G.floor*7+ (G.shards||1));
+  // choose 3 distinct
+  const pool=POWERS.slice(); const choices=[];
+  for(let i=0;i<3&&pool.length;i++){ const idx=Math.floor(G.rng()*pool.length); choices.push(pool.splice(idx,1)[0]); }
+  const wrap=$('powerCards'); wrap.innerHTML='';
+  choices.forEach(pw=>{
+    const card=document.createElement('div');card.className='pcard';
+    card.innerHTML=`<div class="ic">${pw.ic}</div><div class="pn">${pw.n}</div><div class="pd">${pw.d}</div>`;
+    card.onclick=()=>{ pw.apply(G); SFX.pow(); TG.notify('success'); closeOv('powerOv'); flashFloor('▲ '+pw.n+' acquired'); resumeAfterPick(); };
+    wrap.appendChild(card);
+  });
+  openOv('powerOv');
+}
+function resumeAfterPick(){ mode='play'; running=true; $('pauseBtn').style.display='block'; lastT=performance.now(); requestAnimationFrame(loop); }
+
+/* ---------- death / game over ---------- */
+function die(){
+  if(G.dead)return; G.dead=true; mode='over'; running=false;
+  SFX.die(); TG.notify('error'); G.shake=1.2;
+  $('pauseBtn').style.display='none';
+  const h=Math.floor(G.peak);
+  // shards earned: collected + height bonus
+  const earned=G.shards + Math.floor(h/25);
+  META.shards+=earned; META.runs++;
+  const prevBest = G.daily?META.dailyBest:META.best;
+  let isRecord=false;
+  if(G.daily){ if(META.dailyDate!==todayKey()){META.dailyDate=todayKey();META.dailyBest=0;} if(h>META.dailyBest){META.dailyBest=h;isRecord=true;} }
+  else { if(h>META.best){META.best=h;isRecord=true;} }
+  // save ghost if record (downsampled)
+  if(isRecord && G.ghostSamples.length){
+    const ds=downsample(G.ghostSamples,80);
+    META.ghost={daily:G.daily?todayKey():null,samples:ds,h};
+  }
+  saveMeta();
+  // UI
+  $('goHeight').textContent=h;
+  $('goBest').textContent=(isRecord?'★ NEW BEST!':'best '+prevBest+'m');
+  $('goShards').textContent='◆ +'+earned+' shards  (bank: '+META.shards+')';
+  $('goNarr').textContent=isRecord?pickArr(T_HIGH,h):pickArr(T_DEATH,h+G.floor);
+  // duel result
+  const cl=$('goChalLine'), cb=$('goChalBtn');
+  if(G.chal){ const won=h>=G.challengeH; cl.style.display='block'; cl.style.color=won?'var(--green)':'var(--red)';
+    cl.textContent=won?('🏆 YOU WON — '+h+'m vs '+G.challengeName+"'s "+G.challengeH+'m'):('💀 Lost — '+h+'m vs '+G.challengeName+"'s "+G.challengeH+'m');
+    cb.textContent=won?('⚔ Send it back (beat my '+h+'m)'):('⚔ Rematch — challenge back ('+h+'m)');
+  } else { cl.style.display='none'; cb.textContent='⚔ Challenge a friend to beat '+h+'m'; }
+  // daily rank
+  const rw=$('goRankWrap');
+  if(G.daily){ rw.style.display='flex'; rw.innerHTML=''; const lb=buildLeaderboard(h); const box=renderLb(lb); rw.appendChild(box); }
+  else rw.style.display='none';
+  openOv('goOv');
+}
+function downsample(arr,n){ if(arr.length<=n)return arr; const out=[];const step=arr.length/n; for(let i=0;i<n;i++)out.push(arr[Math.floor(i*step)]); out.push(arr[arr.length-1]); return out; }
+
+/* ---------- leaderboard (deterministic per day) ---------- */
+const NAMES=['xKlausx','Sergey','BabaYaga','Tower_Goblin','m1lk','noobmaster','Дима','Falling_Up','CaffeineQueen','Spork','GreedIsGood','Vlad','9to5wizard','TapTapBoom','SaltLord','Mr_Almost'];
+function buildLeaderboard(myH){
+  const r=mulberry32(hashStr('ascent-lb-'+todayKey()));
+  const list=[]; const used=new Set();
+  for(let i=0;i<11;i++){ let idx=Math.floor(r()*NAMES.length); while(used.has(idx))idx=(idx+1)%NAMES.length; used.add(idx);
+    list.push({nm:NAMES[idx],h:Math.floor(300+r()*2400),me:false}); }
+  list.push({nm:'YOU',h:myH,me:true});
+  list.sort((a,b)=>b.h-a.h);
+  return list;
+}
+function renderLb(list){
+  const box=document.createElement('div');box.className='lb';
+  list.slice(0,12).forEach((e,i)=>{const row=document.createElement('div');row.className='lrow'+(e.me?' me':'');row.innerHTML=`<div class="rk">${i+1}</div><div class="nm">${e.nm}</div><div class="ht">${e.h}m</div>`;box.appendChild(row);});
+  return box;
+}
+
+/* ---------- render ---------- */
+function render(){
+  ctx.clearRect(0,0,W,H);
+  const r=G; if(!r){return;}
+  let sx=0,sy=0; if(r.shake>0){sx=(Math.random()*2-1)*8*r.shake;sy=(Math.random()*2-1)*8*r.shake;}
+  ctx.save();ctx.translate(sx,sy);
+  const cam=r.camTop;
+  // parallax stars / bands by height
+  drawBackground(r,cam);
+  // ghosts (your best + 2 friends) as height pacers
+  drawGhosts(r,cam);
+  // duel target line
+  drawTarget(r,cam);
+  // platforms
+  for(const pl of r.platforms){ if(!pl.alive&&pl.type!==PT.FAKE)continue; if(!pl.alive)continue;
+    const y=pl.y-cam; if(y<-30||y>H+30)continue; drawPlatform(pl,y); }
+  // hazards
+  ctx.fillStyle='#ff4d5e';
+  for(const s of r.spikesHaz){const y=s.y-cam;if(y<-20||y>H+20)continue;drawSpikes(s.x,y,s.w);}
+  // collectibles
+  for(const c of r.collectibles){ if(c.got)continue; const y=c.y-cam; if(y<-20||y>H+20)continue; drawShard(c.x,y); }
+  // particles
+  for(const pt of r.particles){ ctx.globalAlpha=Math.max(0,pt.life*2);ctx.fillStyle=pt.col;ctx.fillRect(pt.x-2,pt.y-cam-2,4,4);ctx.globalAlpha=1; }
+  // player
+  drawPlayer(r.player, r.player.y-cam);
+  ctx.restore();
+}
+function drawBackground(r,cam){
+  const d=diff(r.peak);
+  // subtle moving grid dots based on cam
+  ctx.fillStyle='rgba(255,255,255,0.05)';
+  const off=((-cam)*0.3)%40;
+  for(let y=-40;y<H+40;y+=40){for(let x=10;x<W;x+=46){ctx.fillRect((x+ (y*0)) ,((y+off)),2,2);}}
+  // altitude haze
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,`rgba(${Math.floor(40+d*120)},${Math.floor(20+d*10)},${Math.floor(80+d*40)},0.18)`);
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+function drawPlatform(pl,y){
+  const x=pl.x,w=pl.w;
+  let col='#2fd07a',edge='#1b7d49';
+  if(pl.type===PT.MOVING){col='#4aa3ff';edge='#1e5fa8';}
+  else if(pl.type===PT.CRUMBLE){col=pl.touched?'#8a5a2b':'#c98a3e';edge='#6b4115';}
+  else if(pl.type===PT.SPRING){col='#3ee6e0';edge='#1b8c88';}
+  else if(pl.type===PT.SPIKE){col='#ff4d5e';edge='#a11';}
+  else if(pl.type===PT.FAKE){col='rgba(120,110,200,.5)';edge='rgba(80,70,160,.5)';}
+  ctx.fillStyle=edge;rr(x,y+5,w,8,4);ctx.fill();
+  ctx.fillStyle=col;rr(x,y,w,8,4);ctx.fill();
+  if(pl.type===PT.SPRING){ctx.fillStyle='#fff';ctx.fillRect(x+w/2-7,y-6,14,6);}
+  if(pl.type===PT.SPIKE){ctx.fillStyle='#ff8a93';for(let i=x+4;i<x+w-4;i+=10){ctx.beginPath();ctx.moveTo(i,y);ctx.lineTo(i+5,y-9);ctx.lineTo(i+10,y);ctx.fill();}}
+}
+function drawSpikes(x,y,w){for(let i=x;i<x+w-4;i+=9){ctx.beginPath();ctx.moveTo(i,y);ctx.lineTo(i+4.5,y+12);ctx.lineTo(i+9,y);ctx.fill();}}
+function drawShard(x,y){ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillStyle='#ffd23f';ctx.shadowColor='#ffd23f';ctx.shadowBlur=8;ctx.fillRect(-6,-6,12,12);ctx.restore();ctx.shadowBlur=0;}
+function drawPlayer(p,y){
+  const sq=p.squash||0; const w=p.w*(1-sq*0.25), h=p.h*(1+sq*0.25);
+  ctx.save();ctx.translate(p.x,y-h/2);
+  // body
+  ctx.fillStyle='#ffd23f';rr(-w/2,-h/2,w,h,8);ctx.fill();
+  ctx.fillStyle='#1a1300';
+  // eyes look toward movement
+  const ex=p.face*4;
+  ctx.fillRect(-7+ex,-h/2+9,5,6);ctx.fillRect(4+ex,-h/2+9,5,6);
+  ctx.restore();
+  // shield ring
+  if(G.shields>0){ctx.strokeStyle='rgba(33,208,122,.8)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,y-h/2,w*0.9,0,7);ctx.stroke();}
+}
+function drawTarget(r,cam){
+  if(!r.chal)return;
+  const y=(-r.challengeH*PPM)-cam; if(y<-40||y>H+40)return;
+  ctx.save();
+  ctx.strokeStyle=r.beat?'rgba(33,208,122,.85)':'rgba(255,77,141,.9)';
+  ctx.lineWidth=2; ctx.setLineDash([11,8]);
+  ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=r.beat?'#21d07a':'#ff4d8d'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+  ctx.fillText((r.beat?'✓ passed ':'🎯 ')+r.challengeName+' · '+r.challengeH+'m', W/2, y-6);
+  ctx.textAlign='left'; ctx.restore();
+}
+function drawGhosts(r,cam){
+  const list=[];
+  if(r.ghost&&r.ghost.samples) list.push({s:r.ghost.samples,nm:'YOU(best)',col:'rgba(62,230,224,0.35)'});
+  // 2 deterministic friend ghosts (height = speed*t)
+  const fr=mulberry32(hashStr('friends-'+(r.daily?todayKey():'e')+r.seed));
+  for(let i=0;i<2;i++){const sp=70+fr()*60;list.push({fn:t=>sp*t,nm:['Sergey','m1lk'][i],col:'rgba(255,77,141,0.28)'});}
+  for(const gh of list){
+    let h=0;
+    if(gh.fn)h=gh.fn(r.time);
+    else { const s=gh.s; let lo=0; for(let i=0;i<s.length;i++){if(s[i].t<=r.time)lo=i;else break;} h=s[lo]?s[lo].h:0; }
+    const gy = (-h*PPM)-cam; if(gy<-20||gy>H+20)continue;
+    const gx = W/2 + Math.sin(r.time*1.3+h*0.01)*(W*0.3);
+    ctx.fillStyle=gh.col;rr(gx-13,gy-16,26,30,7);ctx.fill();
+    ctx.fillStyle=gh.col;ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillText(gh.nm,gx,gy-22);ctx.textAlign='left';
+  }
+}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+/* ---------- HUD ---------- */
+function syncHud(){ if(!G)return; $('hHeight').textContent=Math.floor(G.peak); $('hShards').textContent=G.shards; }
+function flashFloor(txt){const f=$('floorTag');f.textContent=txt;f.style.opacity='1';setTimeout(()=>f.style.opacity='0',1300);}
+let toastTimer=null;
+function narrate(t){const el=$('toast');el.innerHTML='<b>Architect:</b> '+t;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
+
+/* ---------- main loop ---------- */
+let lastT=0,acc=0;const STEP=1/60;
+function loop(t){
+  if(mode!=='play'){return;}
+  const now=t; let frame=(now-lastT)/1000; lastT=now;
+  if(frame>0.1)frame=0.1; acc+=frame;
+  let guard=0;
+  while(acc>=STEP && mode==='play'){ update(STEP); acc-=STEP; if(++guard>5)break; }
+  if(mode==='play'){ render(); syncHud(); requestAnimationFrame(loop); }
+}
+
+/* ---------- flow control ---------- */
+function startRun(daily, chal){
+  closeAll(); resize();
+  G=freshRun(daily, chal);
+  mode='play';running=true; $('pauseBtn').style.display='block';
+  flashFloor(chal?('⚔ Duel vs '+chal.n):(daily?'📅 Daily Tower':'▲ Climb!'));
+  // welcome-back / start narrate
+  if(chal){ narrate('"'+chal.n+' reached '+chal.h+'m on this exact tower. Beat it. I dare you."'); }
+  else { const prev=daily?META.dailyBest:META.best; if(prev>0) narrate(pickArr(T_BACK,prev).replace('{b}',prev)); else narrate('"Welcome. Let\'s see how you fall."'); }
+  lastT=performance.now();acc=0; requestAnimationFrame(loop);
+}
+function pauseGame(){ if(mode!=='play')return; mode='pause';running=false; $('pauseBtn').style.display='none'; $('pauseSub').textContent=pickArr(['"Running away already?"','"I\'ll wait. I\'m patient. And evil."'],Math.floor(G.peak)); openOv('pauseOv'); }
+function resumeGame(){ closeOv('pauseOv'); mode='play';running=true; $('pauseBtn').style.display='block'; lastT=performance.now(); requestAnimationFrame(loop); }
+function toMenu(){ closeAll(); G=null; mode='menu'; $('pauseBtn').style.display='none'; refreshMenu(); openOv('menuOv'); }
+
+/* ---------- overlays ---------- */
+function openOv(id){$(id).classList.add('show');}
+function closeOv(id){$(id).classList.remove('show');}
+function closeAll(){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('show'));}
+
+/* ---------- menu / store / daily ---------- */
+function refreshMenu(){ $('mBest').textContent=META.best; $('mShards').textContent=META.shards; $('mRuns').textContent=META.runs; $('soundLbl').textContent=SFX.isOn()?'sound on':'sound off'; }
+function buildStore(){
+  const list=$('storeList'); list.innerHTML=''; $('forgeBank').textContent=META.shards;
+  UNLOCKS.forEach(u=>{
+    const lv=unlockLv(u.id); const maxed=lv>=u.max; const cost=Math.floor(u.cost*Math.pow(1.6,lv));
+    const it=document.createElement('div'); it.className='sitem'+(maxed?' owned':'');
+    const lvtxt=u.max>1?` <span style="color:#3ee6e0">Lv ${lv}/${u.max}</span>`:(lv?' <span style="color:#21d07a">owned</span>':'');
+    it.innerHTML=`<div class="si">${u.ic}</div><div class="sb"><div class="sn">${u.n}${lvtxt}</div><div class="sd">${u.d}</div></div>`;
+    const b=document.createElement('button');b.className='buy';
+    if(maxed){b.textContent='MAX';b.disabled=true;}
+    else{b.textContent='◆ '+cost; b.disabled=META.shards<cost; b.onclick=()=>{ if(META.shards>=cost){META.shards-=cost;META.unlocks[u.id]=lv+1;SFX.pow();TG.notify('success');saveMeta();buildStore();}};}
+    it.appendChild(b); list.appendChild(it);
+  });
+}
+function openDaily(){
+  closeAll();
+  if(META.dailyDate!==todayKey()){META.dailyBest=0;}
+  $('dailyDate').textContent=todayKey();
+  $('dailyBest').textContent=META.dailyBest;
+  const lb=buildLeaderboard(META.dailyBest);
+  const box=$('dailyLb'); box.className='lb'; box.innerHTML='';
+  lb.slice(0,12).forEach((e,i)=>{const row=document.createElement('div');row.className='lrow'+(e.me?' me':'');row.innerHTML=`<div class="rk">${i+1}</div><div class="nm">${e.nm}</div><div class="ht">${e.h}m</div>`;box.appendChild(row);});
+  openOv('dailyOv');
+}
+
+/* ---------- persistence ---------- */
+function saveMeta(){
+  TG.set('asc_shards',META.shards);TG.set('asc_best',META.best);TG.set('asc_runs',META.runs);
+  TG.set('asc_unlocks',JSON.stringify(META.unlocks));
+  TG.set('asc_dailyDate',META.dailyDate);TG.set('asc_dailyBest',META.dailyBest);
+  TG.set('asc_sound',SFX.isOn()?'1':'0');
+  if(META.ghost)TG.set('asc_ghost',JSON.stringify(META.ghost));
+}
+function loadMeta(done){
+  const keys=['asc_shards','asc_best','asc_runs','asc_unlocks','asc_dailyDate','asc_dailyBest','asc_sound','asc_ghost'];
+  let pend=keys.length,v={}; keys.forEach(k=>TG.get(k,val=>{v[k]=val;if(--pend===0)apply();}));
+  function apply(){
+    META.shards=+v.asc_shards||0;META.best=+v.asc_best||0;META.runs=+v.asc_runs||0;
+    try{META.unlocks=v.asc_unlocks?JSON.parse(v.asc_unlocks):{};}catch(e){META.unlocks={};}
+    META.dailyDate=v.asc_dailyDate||'';META.dailyBest=+v.asc_dailyBest||0;
+    if(v.asc_sound==='0')SFX.setOn(false);
+    try{META.ghost=v.asc_ghost?JSON.parse(v.asc_ghost):null;}catch(e){META.ghost=null;}
+    done();
+  }
+}
+
+/* ---------- wire UI ---------- */
+$('playBtn').onclick=()=>startRun(false);
+$('dailyBtn').onclick=openDaily;
+$('dailyPlayBtn').onclick=()=>startRun(true);
+$('storeBtn').onclick=()=>{buildStore();openOv('storeOv');};
+$('howBtn').onclick=()=>openOv('howOv');
+$('pauseBtn').onclick=pauseGame;
+$('resumeBtn').onclick=resumeGame;
+$('quitBtn').onclick=toMenu;
+$('retryBtn').onclick=()=>startRun(G?G.daily:false, G?G.chal:null);
+$('acceptChal').onclick=()=>{ if(CHALLENGE)startRun(false,CHALLENGE); };
+$('goChalBtn').onclick=()=>{ if(!G)return; const link=makeChalLink(G.seed,Math.floor(G.peak));
+  const txt='I climbed '+Math.floor(G.peak)+'m in ASCENT 🗼 think you can beat me on the SAME tower? '+link;
+  if(!TG.share(txt)){ try{navigator.clipboard.writeText(link);}catch(e){} alert('⚔ Challenge link copied! Send it to a friend — they get this exact tower.'); } };
+$('goMenuBtn').onclick=toMenu;
+$('goStoreBtn').onclick=()=>{buildStore();openOv('storeOv');};
+$('shareBtn').onclick=()=>{ const h=Math.floor(G?G.peak:META.best); const txt=`I climbed ${h}m in ASCENT before the tower betrayed me 🗼 beat that 👇`; if(!TG.share(txt)){try{navigator.clipboard.writeText(location.href);}catch(e){} alert('Link copied — send it to your group and watch them fall.');} };
+$('soundLbl').onclick=()=>{SFX.setOn(!SFX.isOn());TG.set('asc_sound',SFX.isOn()?'1':'0');refreshMenu();};
+document.querySelectorAll('[data-close]').forEach(el=>el.onclick=()=>{closeOv(el.getAttribute('data-close')); if(el.getAttribute('data-close')==='howOv'||el.getAttribute('data-close')==='storeOv'||el.getAttribute('data-close')==='dailyOv'){ if(mode==='menu')openOv('menuOv'); }});
+
+/* ---------- boot ---------- */
+const CHALLENGE=parseChal();
+TG.ready(); resize();
+loadMeta(()=>{ refreshMenu(); bindInput();
+  if(CHALLENGE){ $('chalName').textContent=CHALLENGE.n; $('chalH').textContent=CHALLENGE.h; $('chalBanner').style.display='block'; }
+});
+// keep canvas painting a faint idle backdrop on menu
+(function idle(){ if(mode==='menu'){ ctx.clearRect(0,0,W,H); } requestAnimationFrame(idle); })();
+window.addEventListener('beforeunload',saveMeta);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){saveMeta(); if(mode==='play')pauseGame();}});
+</script>
+</body>
+</html>

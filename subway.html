@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subway of the Damned — Story Bible</title>
+<style>
+  :root{
+    --bg:#06060c;--panel:#10111a;--panel-2:#181a26;--ink:#ececf4;--muted:#9092a6;
+    --red:#ff3b4a;--cyan:#5ce1ff;--gold:#ffd166;--green:#7ddf64;--purple:#b16cff;--line:#262838;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:19px;line-height:1.7;
+    background-image:radial-gradient(circle at 20% 10%,rgba(92,225,255,.06),transparent 40%),
+                     radial-gradient(circle at 80% 80%,rgba(255,59,74,.05),transparent 40%);
+    background-attachment:fixed}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px 60px}
+  .topnav{padding:18px 0;display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid var(--line);margin-bottom:0}
+  .topnav a{color:var(--muted);text-decoration:none;font-size:14px;letter-spacing:1px;text-transform:uppercase}
+  .topnav a:hover{color:var(--cyan)}
+  .topnav .crumb{color:var(--cyan);font-weight:700}
+
+  .hero{position:relative;height:540px;margin:0 -24px 50px;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero-img{position:absolute;inset:0;background-size:cover;background-position:center;
+    background-image:url('https://images.unsplash.com/photo-1727246115849-eea4f2b85a65?w=1800&q=85&auto=format&fit=crop');
+    filter:brightness(.5) contrast(1.1) saturate(.7);animation:slowZoom 30s ease-in-out infinite alternate}
+  @keyframes slowZoom{0%{transform:scale(1)}100%{transform:scale(1.08)}}
+  .hero-gradient{position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(0,0,0,.4) 0%,transparent 30%,rgba(6,6,12,.4) 60%,var(--bg) 100%)}
+  .hero-content{position:absolute;left:0;right:0;bottom:60px;text-align:center;padding:0 24px}
+  .hero-tag{display:inline-block;padding:5px 14px;border:1px solid var(--cyan);color:var(--cyan);
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:18px;
+    background:rgba(0,0,0,.4);border-radius:4px}
+  .hero h1{font-size:64px;margin:0 0 18px;letter-spacing:1px;line-height:1.05;
+    text-shadow:0 4px 30px rgba(0,0,0,.9), 0 0 60px rgba(92,225,255,.2)}
+  .hero h1 .accent{color:var(--red)}
+  .hero-sub{font-size:21px;color:#d0d2e0;max-width:680px;margin:0 auto;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+  .hero-pa{position:absolute;top:28px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.7);color:var(--cyan);font-family:'Courier New',monospace;
+    font-size:13px;padding:6px 14px;border-radius:4px;border:1px solid var(--cyan);
+    letter-spacing:2px;text-shadow:0 0 8px var(--cyan);animation:paBlink 4s ease-in-out infinite}
+  @keyframes paBlink{0%,100%{opacity:.5}50%{opacity:1}}
+  .scanlines{position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0,rgba(0,0,0,.18) 1px,transparent 1px,transparent 4px)}
+  .flicker{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;
+    animation:flick 7s steps(1) infinite;mix-blend-mode:overlay}
+  @keyframes flick{0%,95%{opacity:0}96%{opacity:.4}97%{opacity:0}98%{opacity:.3}99%{opacity:0}}
+
+  h2{font-size:34px;margin:60px 0 20px;color:var(--cyan);letter-spacing:.3px;
+    border-bottom:2px solid var(--cyan);padding-bottom:8px;text-shadow:0 0 14px rgba(92,225,255,.25)}
+  h3{font-size:24px;margin:30px 0 14px;color:var(--gold)}
+  h4{font-size:20px;margin:14px 0 6px;color:var(--ink)}
+  p{margin:10px 0 14px}
+  .lead{color:var(--muted);font-size:18px;max-width:780px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:24px 26px;margin:20px 0;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+  .card.red{border-left:4px solid var(--red)}
+  .card.cyan{border-left:4px solid var(--cyan)}
+  .card.gold{border-left:4px solid var(--gold)}
+  .card.green{border-left:4px solid var(--green)}
+  .card.purple{border-left:4px solid var(--purple)}
+  ul{padding-left:24px;margin:8px 0 14px}
+  li{margin:8px 0}
+  .pull-card{background:linear-gradient(135deg,#0a141a,#0c0a14);
+    padding:30px;border-radius:14px;border:1px solid var(--line);margin:24px 0;text-align:center}
+  .pull-card h3{margin-top:0}
+  .quote{font-size:22px;color:var(--gold);font-style:italic;
+    border-left:3px solid var(--gold);padding:14px 22px;margin:18px 0;
+    background:rgba(255,209,102,.06);border-radius:0 8px 8px 0}
+  .twist{background:rgba(255,59,74,.08);border:1px dashed var(--red);padding:14px 18px;margin:14px 0;border-radius:8px}
+  .twist b{color:var(--red);letter-spacing:1px;font-size:14px;text-transform:uppercase;display:block;margin-bottom:4px}
+
+  .cast-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:18px 0}
+  .character{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;overflow:hidden;transition:transform .25s ease}
+  .character:hover{transform:translateY(-3px)}
+  .character .portrait{height:200px;background-size:cover;background-position:center;position:relative;
+    filter:grayscale(.4) contrast(1.1) brightness(.85)}
+  .character .portrait::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.85))}
+  .character .body{padding:14px 16px}
+  .character h4{margin:0 0 4px;font-size:18px}
+  .character .role{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--red);margin-bottom:6px;font-weight:700}
+  .character.cyan .role{color:var(--cyan)}
+  .character.gold .role{color:var(--gold)}
+  .character.purple .role{color:var(--purple)}
+  .character p{margin:4px 0;font-size:14px;color:var(--muted);line-height:1.5}
+  .character .voice{font-size:13px;color:var(--ink);font-style:italic;margin-top:6px}
+
+  .tiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:14px 0}
+  .tier{position:relative;height:200px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#000}
+  .tier .timg{position:absolute;inset:0;background-size:cover;background-position:center;
+    filter:brightness(.55) contrast(1.1);transition:transform .6s ease}
+  .tier:hover .timg{transform:scale(1.08)}
+  .tier .toverlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.9))}
+  .tier .tbody{position:absolute;left:0;right:0;bottom:0;padding:14px 16px}
+  .tier h4{margin:0 0 4px;font-size:18px}
+  .tier .tdiff{font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .tier.easy .tdiff{color:var(--green)}
+  .tier.med .tdiff{color:var(--cyan)}
+  .tier.hard .tdiff{color:var(--gold)}
+  .tier.night .tdiff{color:var(--red)}
+  .tier p{margin:4px 0 0;font-size:13px;color:#c0c2d0;line-height:1.4}
+
+  .story-act{position:relative;margin:30px 0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
+  .story-img{height:260px;background-size:cover;background-position:center;position:relative;filter:brightness(.6) contrast(1.05)}
+  .story-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,var(--panel))}
+  .story-content{padding:0 28px 24px;margin-top:-50px;position:relative;z-index:2}
+  .story-content .actlabel{display:inline-block;padding:4px 12px;background:var(--red);color:#fff;
+    font-size:11px;letter-spacing:2px;text-transform:uppercase;border-radius:4px;font-weight:700;margin-bottom:10px}
+  .story-content h3{margin:0 0 10px;font-size:26px;color:var(--ink)}
+
+  .role-card{display:flex;gap:16px;padding:18px;background:var(--panel-2);border-radius:10px;margin:10px 0;border:1px solid var(--line)}
+  .role-icon{width:60px;height:60px;flex-shrink:0;background:#000;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900}
+  .role-icon.r1{color:var(--gold);border:2px solid var(--gold)}
+  .role-icon.r2{color:var(--cyan);border:2px solid var(--cyan)}
+  .role-icon.r3{color:var(--purple);border:2px solid var(--purple)}
+  .role-icon.r4{color:var(--green);border:2px solid var(--green)}
+  .role-icon.r5{color:var(--red);border:2px solid var(--red)}
+  .role-icon.rlog{color:#888;border:2px dashed #888}
+  .role-card .body{flex:1}
+  .role-card h4{margin:0 0 4px;font-size:18px}
+  .role-card .duties{margin:6px 0;font-size:15px;color:var(--muted)}
+
+  .power-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:16px 0}
+  .power{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px;position:relative}
+  .power.tier-1{border-top:3px solid var(--green)}
+  .power.tier-2{border-top:3px solid var(--cyan)}
+  .power.tier-3{border-top:3px solid var(--gold)}
+  .power.tier-4{border-top:3px solid var(--purple)}
+  .power h4{margin:0 0 4px;font-size:16px}
+  .power .cost{position:absolute;top:8px;right:10px;font-size:11px;color:var(--gold);letter-spacing:1px}
+  .power p{margin:4px 0 0;font-size:14px;color:var(--muted);line-height:1.5}
+
+  .ending{padding:18px 22px;margin:12px 0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px}
+  .ending.up{border-left:4px solid var(--green)}
+  .ending.down{border-left:4px solid var(--red)}
+  .ending h4{margin:0 0 6px;font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<nav class="topnav">
+  <a href="elevator.html">← elevator</a>
+  <span class="crumb">Game 2 — Subway of the Damned</span>
+  <a href="index.html">back to chooser →</a>
+</nav>
+
+<!-- ======= HERO ======= -->
+<div class="hero">
+  <div class="hero-img"></div>
+  <div class="hero-gradient"></div>
+  <div class="scanlines"></div>
+  <div class="flicker"></div>
+  <div class="hero-pa">▶ PA · "ONE OF YOU ISN'T GETTING OFF"</div>
+  <div class="hero-content">
+    <div class="hero-tag">Second Game · 4–6 Players · Social Horror</div>
+    <h1>Subway of the <span class="accent">Damned</span></h1>
+    <p class="hero-sub">Last train. Midnight. One of you is already dead and doesn't
+      know it yet. Survive to dawn. Vote right. Or ride The Hell Line forever.</p>
+  </div>
+</div>
+
+<!-- ======= LOGLINE ======= -->
+<div class="pull-card">
+  <h3>Logline</h3>
+  <p style="font-size:20px;line-height:1.5;margin:0;color:#d8d8e4">
+    Last train. Midnight. 4 to 6 passengers. The PA crackles three stations in:
+    "One of you isn't getting off." One player is secretly possessed —
+    even they don't know yet. Survive to the terminal. Vote right. Or ride forever.
+  </p>
+</div>
+
+<!-- ======= WORLD ======= -->
+<h2>The World</h2>
+<div class="card cyan">
+  <p>Beneath every great city runs <b>The Underline</b> — a parallel rail network
+    using real stations, real platforms, real schedules. Trains that run after midnight
+    don't appear on any timetable. They pick up the lost, the late, the half-dead,
+    and the merely cursed.</p>
+  <p>The Underline is run by <b>The Conductor</b> — a sorcerer-priest from 1944
+    bound to a PA system. He doesn't know he's dead. The trains run because he
+    believes they should.</p>
+  <p>Most passengers ride one stop and exit at dawn, none the wiser. But sometimes
+    a train picks up a soul that doesn't belong. Then the doors stop opening.
+    Then the lights start to flicker. Then the missions begin.</p>
+</div>
+
+<!-- ======= CAST ======= -->
+<h2>The Cast</h2>
+<p class="lead">Reference images below are mood-board only — pulled from free photography
+  so you and your friends can <i>see</i> what these characters might feel like.
+  Final designs will be custom-drawn.</p>
+
+<div class="cast-grid">
+
+  <div class="character">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1741256422430-d2f8486a573a?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Voice Only</div>
+      <h4>The Conductor</h4>
+      <p>Never seen. PA system only. Announces stations — sometimes from 1944.
+        A sorcerer-priest who died bound to the rails.</p>
+      <p class="voice">"Mind the gap. Mind the gap. Mind… the gap."</p>
+    </div>
+  </div>
+
+  <div class="character gold">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1633380170808-9404cd630e82?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Helpful · Sometimes</div>
+      <h4>Babushka</h4>
+      <p>Sits in the third car. Knits a scarf that never grows. Will give cryptic clues
+        if you share food. She rode this train in 1953 and never got off.</p>
+    </div>
+  </div>
+
+  <div class="character cyan">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1762417583035-20f329b42684?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Doesn't Know He's Dead</div>
+      <h4>The Salaryman</h4>
+      <p>40 years on this train. Reads the same newspaper. Died in 1985.
+        Will help politely if asked. Wakes up in Act III. Screams.</p>
+    </div>
+  </div>
+
+  <div class="character">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">One of You</div>
+      <h4>The Possessed</h4>
+      <p>Randomly chosen at Station 3. Receives a private Telegram DM revealing their
+        identity and one demon power per Line. Can sabotage missions, kill in darkness,
+        lie in chat. Cannot directly tell teammates.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======= LINES / TIERS ======= -->
+<h2>The Lines — Difficulty Tiers</h2>
+<div class="tiers">
+  <div class="tier easy">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1727246115849-eea4f2b85a65?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Easy · 4 stations</div>
+      <h4>Moscow Metro</h4>
+      <p>Soviet-era cars. Heavy doors. Babushka who knows too much.</p>
+    </div>
+  </div>
+  <div class="tier med">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1762417583035-20f329b42684?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Medium · 6 stations</div>
+      <h4>Tokyo Yamanote</h4>
+      <p>Crowded. The Possessed can hide in crowd-blur. Schoolgirl ghost trope.</p>
+    </div>
+  </div>
+  <div class="tier hard">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1741256422430-d2f8486a573a?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Hard · 8 stations</div>
+      <h4>NYC Express</h4>
+      <p>Graffitied cars. Conductor unreliable. Random homeless oracle.</p>
+    </div>
+  </div>
+  <div class="tier night">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1769837517122-3f50e07fb880?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Nightmare · 12 stations</div>
+      <h4>The Hell Line</h4>
+      <p>Unlocked after beating all 3 surface lines. Possessed gets demon powers.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======= ROLES ======= -->
+<h2>Player Roles — Each Passenger Has a Job</h2>
+<p class="lead">5 magic classes plus the Log. A 5-player game gets 4 random mages + 1 Log.
+  Smaller games skip some classes but always include the Log.</p>
+
+<div class="card purple">
+
+  <div class="role-card">
+    <div class="role-icon r1">N</div>
+    <div class="body">
+      <h4>The Navigator — Cartomancer</h4>
+      <div class="duties">Reads the route map (which keeps changing). <b>Magic school:
+        Cartomancy.</b> Without them, you don't know which station is real.</div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r2">M</div>
+    <div class="body">
+      <h4>The Mechanic — Iron Mage</h4>
+      <div class="duties">Fixes flickering lights, jammed doors, dying batteries.
+        <b>Magic school: Iron-binding.</b> Without them, the lights fail forever.</div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r3">E</div>
+    <div class="body">
+      <h4>The Empath — Soul Listener</h4>
+      <div class="duties">Talks to NPCs (Babushka, Salaryman), reads emotional aura
+        of teammates to spot the Possessed. <b>Magic school: Empathomancy.</b></div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r4">G</div>
+    <div class="body">
+      <h4>The Bodyguard — Shadow Ward</h4>
+      <div class="duties">Blocks shadow attacks between stations, revives downed teammates.
+        <b>Magic school: Umbramancy.</b> Without them, dark moments kill.</div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r5">V</div>
+    <div class="body">
+      <h4>The Voice — PA Speaker</h4>
+      <div class="duties">Can briefly hijack the PA to broadcast warnings or lies.
+        <b>Magic school: Voxomancy.</b> The Conductor hates them.</div>
+    </div>
+  </div>
+
+  <div class="role-card" style="border:1px dashed #888;background:#0c0c12">
+    <div class="role-icon rlog">≡</div>
+    <div class="body">
+      <h4>The Log — same rules here</h4>
+      <div class="duties">Cannot move on their own. Must be dragged between cars.
+        Two buttons:
+        <code style="background:#000;color:var(--cyan);padding:2px 6px;border-radius:4px">SCREAM</code>
+        (once per ride, stuns Possessed 4s) and
+        <code style="background:#000;color:var(--cyan);padding:2px 6px;border-radius:4px">BE PULLED</code>.
+        NPCs ridicule them. Babushka gives them an extra cookie.<br><br>
+        <b>Reward:</b> 50% team bonus if the team wins. Highest payout most rounds.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======= MAGIC ======= -->
+<h2>Magic & Powers — Highlight Spells</h2>
+<p class="lead">Same 4-tier, 8-spell structure per class. Tier 1–3 unlocked by personal
+  Tickets. Tier 4 requires team milestones (e.g. all 5 players survive Tokyo Line together).</p>
+
+<div class="card cyan">
+  <h3 style="margin-top:0">Highlight Spells Across All 5 Schools</h3>
+  <div class="power-grid">
+    <div class="power tier-1"><div class="cost">50 Tickets</div><h4>Read Sign</h4><p>(Cartomancy) See next station's true name.</p></div>
+    <div class="power tier-1"><div class="cost">120 Tickets</div><h4>Cold Iron</h4><p>(Iron-binding) Lock a door against the Possessed.</p></div>
+    <div class="power tier-2"><div class="cost">300 Tickets</div><h4>Steady Hand</h4><p>(Iron-binding) Stop a flickering light permanently.</p></div>
+    <div class="power tier-2"><div class="cost">450 Tickets</div><h4>Heart Read</h4><p>(Empathomancy) See if a teammate is lying. 60s cooldown.</p></div>
+    <div class="power tier-3"><div class="cost">1200 · Lvl 8</div><h4>Shadow Catch</h4><p>(Umbramancy) Catch one shadow attack mid-strike, throw it back.</p></div>
+    <div class="power tier-3"><div class="cost">1500 · Lvl 10</div><h4>False PA</h4><p>(Voxomancy) Broadcast a fake station announcement for one round.</p></div>
+    <div class="power tier-4"><div class="cost">4000 · TEAM 15</div><h4>Soul Compass</h4><p>(Empathomancy) Point directly at the Possessed for 3 seconds.</p></div>
+    <div class="power tier-4"><div class="cost">7500 · TEAM 20</div><h4>Dawn Whistle</h4><p>End the run early. Force sunrise. Half rewards, full survival.</p></div>
+  </div>
+</div>
+
+<!-- ======= CREDIT FLOW ======= -->
+<div class="card green">
+  <h3 style="margin-top:0">How Tickets → Powers → TON</h3>
+  <ul>
+    <li><b>Earn Tickets</b> by completing missions, identifying clues, surviving stations.</li>
+    <li><b>Spend Tickets</b> on spell unlocks in your class tree (tiers 1–4).</li>
+    <li><b>Player Level</b> — grinds solo. Unlocks tier 3.</li>
+    <li><b>Team Level</b> — grows only with friends completing harder lines together. Unlocks tier 4.</li>
+    <li><b>Swap Tickets → TON</b> at the exchange. 5% fee.</li>
+    <li><b>Transfer Tickets (lore drops)</b> from 1944/1962/1985/2001 — tradable as NFTs.</li>
+  </ul>
+</div>
+
+<!-- ======= STORYLINE ======= -->
+<h2>The Storyline</h2>
+
+<div class="story-act">
+  <div class="story-img" style="background-image:url('https://images.unsplash.com/photo-1727246115849-eea4f2b85a65?w=1200&q=80&auto=format&fit=crop')"></div>
+  <div class="story-content">
+    <div class="actlabel">Act I — Last Train</div>
+    <h3>Chapters 1–3: Boarding → Tutorial Stations → The Announcement</h3>
+    <p>Players spawn on an empty platform. The destination board flickers between languages.
+      A train pulls in with the doors already open. The PA welcomes them by name.
+      Stations 1 and 2 teach mechanics. At Station 3 the PA goes silent for 7 seconds,
+      then The Conductor speaks. One random player gets a private Telegram DM.</p>
+    <div class="quote">"One of you isn't getting off. The rest of you will need to decide who."</div>
+    <div class="twist"><b>End of Act I — The Knowledge</b>
+      The Possessed now knows. Their friends don't. Voice chat becomes paranoia chat.
+      Every shadow becomes evidence. Every silence becomes a confession.</div>
+  </div>
+</div>
+
+<div class="story-act">
+  <div class="story-img" style="background-image:url('https://images.unsplash.com/photo-1762417583035-20f329b42684?w=1200&q=80&auto=format&fit=crop')"></div>
+  <div class="story-content">
+    <div class="actlabel">Act II — The Lines Bleed</div>
+    <h3>Chapters 4–6: Wrong Tunnel → Transfer Tickets → Babushka Speaks</h3>
+    <p>The train takes a curve no rail map shows. The next station is bilingual —
+      Russian on top, Japanese on bottom. Players find paper tickets from 1944, 1962,
+      1985, 2001 — each ticket plays a 10-second cutscene revealing a previous casualty.
+      If players share food with Babushka three times, she finally talks.</p>
+    <div class="quote">"He gets off today. One of you will take his place."</div>
+    <div class="twist"><b>End of Act II — The Salaryman Wakes</b>
+      The Salaryman finally looks up from his newspaper. He realizes. He screams.
+      Temporary ally — but only until the next station.</div>
+  </div>
+</div>
+
+<div class="story-act">
+  <div class="story-img" style="background-image:url('https://images.unsplash.com/photo-1769837517122-3f50e07fb880?w=1200&q=80&auto=format&fit=crop')"></div>
+  <div class="story-content">
+    <div class="actlabel">Act III — Terminal Station</div>
+    <h3>Chapter 7: The Final Vote</h3>
+    <p>Train pulls into the last station. 60 seconds to dawn. Doors will only open
+      if surviving players correctly identify The Possessed. Each player gets one vote.
+      Tie = doors stay shut.</p>
+
+    <div class="ending up">
+      <h4>Ending A — Daylight</h4>
+      <p>Right vote. Doors open. Sun floods in. The Possessed is dragged off the train
+        by hands you cannot see. Survivors step onto a real platform in a real city,
+        alive, paid out in TON. Unlock: <b>Sunrise Ticket NFT</b>.</p>
+    </div>
+
+    <div class="ending down">
+      <h4>Ending B — The Hell Line</h4>
+      <p>Wrong vote. Train enters a tunnel that wasn't there a moment ago.
+        All players become permanent passengers of the nightmare tier.
+        Compensation: <b>Damned Soul cosmetic</b>, a free pass into the next round,
+        and the Possessed gets 3 free Possessed games (huge advantage).</p>
+    </div>
+
+    <div class="quote">"Terminal station. End of service. Thank you for riding with us. We've enjoyed your company."</div>
+  </div>
+</div>
+
+<!-- ======= MONETIZATION ======= -->
+<h2>How It Earns</h2>
+
+<div class="card green">
+  <ul>
+    <li><b>Free to play.</b> 5 runs/day per Telegram account. Extra runs = 0.1 TON each.</li>
+    <li><b>Power purchases.</b> All spells cost Tickets, earned in-game OR bought with TON.</li>
+    <li><b>Cosmetic skins</b> for your train car, your character, the Log itself. Limited drops.</li>
+    <li><b>Season Pass</b> monthly. Hell-Line cosmetics + bonus Tickets.</li>
+    <li><b>Transfer Ticket NFTs</b> — lore drops from each year (1944, 1962, etc.) tradable on TON.</li>
+    <li><b>Revives.</b> Friend died? Spend Tickets to revive. Token sink.</li>
+    <li><b>Swap fee.</b> 5% on every Tickets → TON conversion. House cut.</li>
+    <li><b>Leaderboard pool.</b> Daily. House seeds, players grow it, house keeps 10%.</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

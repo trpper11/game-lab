@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boba Game Lab — 50 Mini-Game Ideas</title>
+<style>
+  :root{ --bg:#0a0a0f; --card:#14141d; --line:#23232f; --pink:#ff4d8d; --cyan:#3ee6e0; --gold:#ffd166; --txt:#eef0f6; --dim:#9aa0b4; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;padding:0 0 60px}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 18px}
+  header{text-align:center;padding:46px 18px 26px;background:radial-gradient(ellipse at top,rgba(255,77,141,.18),transparent 60%)}
+  h1{font-size:34px;letter-spacing:-.5px;background:linear-gradient(90deg,var(--pink),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--dim);font-size:15px;margin-top:8px;max-width:620px;margin-left:auto;margin-right:auto}
+  .rule{max-width:760px;margin:22px auto 0;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:14px 18px;font-size:14px;color:#d7dae6}
+  .rule b{color:var(--gold)}
+  nav{position:sticky;top:0;z-index:5;background:rgba(10,10,15,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 0;margin:24px 0 8px}
+  nav .wrap{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  nav a{font-size:11.5px;color:var(--dim);text-decoration:none;border:1px solid var(--line);padding:4px 9px;border-radius:20px;transition:.15s}
+  nav a:hover{color:var(--txt);border-color:var(--pink)}
+  section{margin-top:30px}
+  .cat{display:flex;align-items:baseline;gap:10px;margin:0 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .cat h2{font-size:17px;color:var(--cyan)}
+  .cat span{font-size:12px;color:var(--dim)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:11px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 14px;position:relative;transition:.15s}
+  .card:hover{border-color:var(--pink);transform:translateY(-2px)}
+  .num{position:absolute;top:10px;right:12px;font-size:11px;color:#4a4a5e;font-weight:700}
+  .name{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:5px;padding-right:24px}
+  .hook{font-size:12.5px;color:#c4c8d6;margin-bottom:8px}
+  .money{font-size:11.5px;color:var(--gold);display:flex;gap:5px;align-items:flex-start}
+  .money b{color:var(--dim);font-weight:600;white-space:nowrap}
+  footer{text-align:center;margin-top:46px;color:var(--dim);font-size:13px}
+  footer a{color:var(--pink);text-decoration:none}
+  @media print{
+    body{background:#fff;color:#000;font-size:10px}
+    header{padding:8px 0}h1{color:#000;-webkit-text-fill-color:#000}
+    nav{display:none}.sub,.rule{color:#333}
+    .card{border:1px solid #ccc;padding:6px 8px;break-inside:avoid}
+    .grid{grid-template-columns:repeat(3,1fr);gap:5px}
+    .cat h2{color:#000}.name{color:#000}.hook{color:#222}.money{color:#7a5a00}
+    section{margin-top:10px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>50 Mini-Game Ideas</h1>
+    <p class="sub">Telegram multiplayer · works on phone + desktop · simple, addictive, built to relax — then pull you back tomorrow.</p>
+    <div class="rule"><b>One iron rule:</b> no dead waiting. Fishing failed because you just sat there. Every game here is instant fun the second you tap — players relax by <i>doing</i>, not idling. Each idea ships with a tiny story hook + a clear way it earns.</div>
+  </div>
+</header>
+
+<nav><div class="wrap">
+  <a href="#reflex">⚡ Reflex</a>
+  <a href="#coop">🤝 Co-op Chill</a>
+  <a href="#party">🎉 Party</a>
+  <a href="#duel">⚔️ Duel</a>
+  <a href="#brain">🧠 Brain</a>
+  <a href="#collect">🎁 Collect</a>
+  <a href="#tycoon">🏭 Active-Idle</a>
+  <a href="#creative">🎨 Creative</a>
+  <a href="#survival">💀 Survival</a>
+  <a href="#daily">📅 Daily Habit</a>
+</div></nav>
+
+<div class="wrap">
+
+<section id="reflex"><div class="cat"><h2>⚡ Reflex &amp; Tap</h2><span>5-second loops, pure dopamine</span></div><div class="grid">
+  <div class="card"><span class="num">01</span><div class="name">Tap Reactor</div><div class="hook">Tiles glow then fade — tap before they die, chain combos with the room.</div><div class="money"><b>$</b>energy refills + neon skins</div></div>
+  <div class="card"><span class="num">02</span><div class="name">Color Rush</div><div class="hook">A color is shouted — 6 players race to slap the right tile first.</div><div class="money"><b>$</b>skill-pot entry, 5% rake</div></div>
+  <div class="card"><span class="num">03</span><div class="name">Beat Tap</div><div class="hook">Tap to the music, lock sync with friends for a shared score multiplier.</div><div class="money"><b>$</b>premium song packs</div></div>
+  <div class="card"><span class="num">04</span><div class="name">Quick Draw Duel</div><div class="hook">Wild-west standoff. "DRAW!" flashes — fastest finger wins the room.</div><div class="money"><b>$</b>gun skins + entry pots</div></div>
+  <div class="card"><span class="num">05</span><div class="name">Dodge Storm</div><div class="hook">Swipe to dodge falling junk. Last one un-smushed takes the round.</div><div class="money"><b>$</b>revives (TON) + skins</div></div>
+</div></section>
+
+<section id="coop"><div class="cat"><h2>🤝 Co-op Chill</h2><span>relax together, watch it grow live</span></div><div class="grid">
+  <div class="card"><span class="num">06</span><div class="name">Garden Together</div><div class="hook">Friends tend one shared plant. Tap to water, it visibly grows every visit.</div><div class="money"><b>$</b>rare seeds + planters</div></div>
+  <div class="card"><span class="num">07</span><div class="name">Campfire</div><div class="hook">2-6 sit around a fire, toss logs, chat, fire-tending micro-games keep hands busy.</div><div class="money"><b>$</b>cosmetic flames + emotes</div></div>
+  <div class="card"><span class="num">08</span><div class="name">Aquarium Co-op</div><div class="hook">Build a shared tank, feed fish together, they breed when both log in.</div><div class="money"><b>$</b>rare fish + tank themes</div></div>
+  <div class="card"><span class="num">09</span><div class="name">Build-a-Town</div><div class="hook">Each friend owns a tile; the town skyline rises as a group.</div><div class="money"><b>$</b>building skins + decor</div></div>
+  <div class="card"><span class="num">10</span><div class="name">Star Map</div><div class="hook">Drag lines between stars to draw constellations with your crew.</div><div class="money"><b>$</b>premium galaxies</div></div>
+</div></section>
+
+<section id="party"><div class="cat"><h2>🎉 Party &amp; Social</h2><span>1-minute rounds, big laughs</span></div><div class="grid">
+  <div class="card"><span class="num">11</span><div class="name">Mafia Lite</div><div class="hook">Among-Us in chat — find the impostor in 60-second rounds.</div><div class="money"><b>$</b>room passes + skins</div></div>
+  <div class="card"><span class="num">12</span><div class="name">Truth Roulette</div><div class="hook">Spin the wheel: truth or dare, whole room reacts.</div><div class="money"><b>$</b>premium dare decks</div></div>
+  <div class="card"><span class="num">13</span><div class="name">Draw &amp; Guess</div><div class="hook">Pictionary, fast rounds, type your guess before the timer.</div><div class="money"><b>$</b>brush packs + hints</div></div>
+  <div class="card"><span class="num">14</span><div class="name">Emoji Story</div><div class="hook">Build a story one emoji each, room votes the funniest line.</div><div class="money"><b>$</b>emoji packs</div></div>
+  <div class="card"><span class="num">15</span><div class="name">Would You Rather</div><div class="hook">Vote, then watch the room split — argue in chat.</div><div class="money"><b>$</b>premium dilemma packs</div></div>
+  <div class="card"><span class="num">16</span><div class="name">Trivia Blitz</div><div class="hook">10-second questions, live room leaderboard.</div><div class="money"><b>$</b>category packs + pots</div></div>
+  <div class="card"><span class="num">17</span><div class="name">Lie Detector</div><div class="hook">Plant a fake "fact" about yourself, friends guess what's true.</div><div class="money"><b>$</b>room passes</div></div>
+</div></section>
+
+<section id="duel"><div class="cat"><h2>⚔️ 1v1 Duel</h2><span>skill, not luck — quick rivalries</span></div><div class="grid">
+  <div class="card"><span class="num">18</span><div class="name">Tap War</div><div class="hook">Tug-of-war by tapping. Team vs team, rope snaps to the winner.</div><div class="money"><b>$</b>entry pots + boosters</div></div>
+  <div class="card"><span class="num">19</span><div class="name">Number Snipe</div><div class="hook">Guess the rival's secret number with hot/cold hints.</div><div class="money"><b>$</b>hint tokens</div></div>
+  <div class="card"><span class="num">20</span><div class="name">Rock Evolved</div><div class="hook">Rock-paper-scissors with unlockable power moves.</div><div class="money"><b>$</b>move skins + pots</div></div>
+  <div class="card"><span class="num">21</span><div class="name">Tower Stack</div><div class="hook">Stack blocks live; whoever towers highest before a topple wins.</div><div class="money"><b>$</b>block skins + revives</div></div>
+  <div class="card"><span class="num">22</span><div class="name">Reflex Roulette</div><div class="hook">Fingers on the trigger — fastest reaction survives, no chance involved.</div><div class="money"><b>$</b>skins + skill pots</div></div>
+</div></section>
+
+<section id="brain"><div class="cat"><h2>🧠 Brain &amp; Puzzle</h2><span>cozy thinking, racing the clock</span></div><div class="grid">
+  <div class="card"><span class="num">23</span><div class="name">Word Chain</div><div class="hook">Say a word starting with the last letter — beat the shrinking timer.</div><div class="money"><b>$</b>hint packs</div></div>
+  <div class="card"><span class="num">24</span><div class="name">Merge Pets</div><div class="hook">Drag identical critters together to evolve cuter, rarer ones.</div><div class="money"><b>$</b>speed boosters + skins</div></div>
+  <div class="card"><span class="num">25</span><div class="name">Flow Connect</div><div class="hook">Connect the pipes, one fresh daily puzzle everyone shares.</div><div class="money"><b>$</b>hint tokens + ad-free</div></div>
+  <div class="card"><span class="num">26</span><div class="name">2048 Royale</div><div class="hook">Classic 2048, but racing 6 players to the highest tile.</div><div class="money"><b>$</b>undo tokens + pots</div></div>
+  <div class="card"><span class="num">27</span><div class="name">Memory Duel</div><div class="hook">Flip-and-match cards faster than your rival head-to-head.</div><div class="money"><b>$</b>card-back skins</div></div>
+  <div class="card"><span class="num">28</span><div class="name">Sudoku Sprint</div><div class="hook">Same grid, race to fill it, ranked by time.</div><div class="money"><b>$</b>hint packs + seasons</div></div>
+</div></section>
+
+<section id="collect"><div class="cat"><h2>🎁 Collect &amp; Trade</h2><span>the "gotta complete the set" itch</span></div><div class="grid">
+  <div class="card"><span class="num">29</span><div class="name">Sticker Hunt</div><div class="hook">Open a daily pack, trade dupes with friends to finish albums.</div><div class="money"><b>$</b>premium packs + trade fee</div></div>
+  <div class="card"><span class="num">30</span><div class="name">Gacha Garden</div><div class="hook">Pull mystery plants, complete seasonal sets for a trophy.</div><div class="money"><b>$</b>pulls (TON) + skins</div></div>
+  <div class="card"><span class="num">31</span><div class="name">Lucky Wheel Club</div><div class="hook">Free daily spin builds a coin streak; rooms compete for top spinner.</div><div class="money"><b>$</b>extra spins + cosmetics</div></div>
+  <div class="card"><span class="num">32</span><div class="name">Egg Crack</div><div class="hook">Tap-crack an egg, hatch a pet, raise it with friends.</div><div class="money"><b>$</b>rare eggs</div></div>
+  <div class="card"><span class="num">33</span><div class="name">Card Flip Collect</div><div class="hook">Flip to grow a deck, trade for the legendary you're missing.</div><div class="money"><b>$</b>packs + trade fee</div></div>
+</div></section>
+
+<section id="tycoon"><div class="cat"><h2>🏭 Active-Idle</h2><span>idle vibe, but always something to tap — never dead time</span></div><div class="grid">
+  <div class="card"><span class="num">34</span><div class="name">Coin Factory</div><div class="hook">Tap to produce, upgrade lines, out-earn your friends' factories.</div><div class="money"><b>$</b>boosters + skins</div></div>
+  <div class="card"><span class="num">35</span><div class="name">Pizza Rush</div><div class="hook">Assemble orders fast in a shared co-op kitchen.</div><div class="money"><b>$</b>recipe packs + decor</div></div>
+  <div class="card"><span class="num">36</span><div class="name">Mining Crew</div><div class="hook">Tap-mine together; the deeper the crew digs, the rarer the loot.</div><div class="money"><b>$</b>pickaxe skins + boosters</div></div>
+  <div class="card"><span class="num">37</span><div class="name">Race Tycoon</div><div class="hook">Upgrade your car between quick live races against friends.</div><div class="money"><b>$</b>car skins + parts</div></div>
+  <div class="card"><span class="num">38</span><div class="name">Bee Hive</div><div class="hook">Tap flowers, make honey, grow a team hive together.</div><div class="money"><b>$</b>rare bees + decor</div></div>
+</div></section>
+
+<section id="creative"><div class="cat"><h2>🎨 Creative &amp; Calm</h2><span>make something, show it off</span></div><div class="grid">
+  <div class="card"><span class="num">39</span><div class="name">Pixel Canvas</div><div class="hook">A shared board — place a pixel every few seconds, watch art emerge.</div><div class="money"><b>$</b>color packs</div></div>
+  <div class="card"><span class="num">40</span><div class="name">Music Maker</div><div class="hook">Drop beats in a room, friends layer on top, jam live.</div><div class="money"><b>$</b>instrument packs</div></div>
+  <div class="card"><span class="num">41</span><div class="name">Doodle Battle</div><div class="hook">Draw to a prompt, room votes the best in 30 seconds.</div><div class="money"><b>$</b>brush packs</div></div>
+  <div class="card"><span class="num">42</span><div class="name">Room Designer</div><div class="hook">Decorate a shared room, vote on each other's makeovers.</div><div class="money"><b>$</b>furniture sets</div></div>
+  <div class="card"><span class="num">43</span><div class="name">Lantern Sky</div><div class="hook">Release a wish lantern, watch friends' lanterns drift across one sky.</div><div class="money"><b>$</b>lantern skins</div></div>
+</div></section>
+
+<section id="survival"><div class="cat"><h2>💀 Survival</h2><span>last-one-standing tension</span></div><div class="grid">
+  <div class="card"><span class="num">44</span><div class="name">Floor Is Lava</div><div class="hook">Jump tile to tile, lava rises, last survivor wins.</div><div class="money"><b>$</b>skins + revives</div></div>
+  <div class="card"><span class="num">45</span><div class="name">Red Light Green Light</div><div class="hook">Move on green, freeze on red — Squid-style reflex elimination.</div><div class="money"><b>$</b>skins + entry pots</div></div>
+  <div class="card"><span class="num">46</span><div class="name">Bomb Pass</div><div class="hook">Hot-potato bomb, tap to pass before it blows on you.</div><div class="money"><b>$</b>skins</div></div>
+  <div class="card"><span class="num">47</span><div class="name">Maze Sprint</div><div class="hook">Race through a maze that reshapes itself every few seconds.</div><div class="money"><b>$</b>skins + boosters</div></div>
+</div></section>
+
+<section id="daily"><div class="cat"><h2>📅 Daily Habit</h2><span>the "come back tomorrow" hook — never make them wait <i>inside</i> the game</span></div><div class="grid">
+  <div class="card"><span class="num">48</span><div class="name">Streak Quest</div><div class="hook">One 60-second challenge a day; keep the streak alive with friends.</div><div class="money"><b>$</b>streak freeze + cosmetics</div></div>
+  <div class="card"><span class="num">49</span><div class="name">Daily Heist</div><div class="hook">One quick co-op heist per day, climb the weekly leaderboard.</div><div class="money"><b>$</b>tools + skins</div></div>
+  <div class="card"><span class="num">50</span><div class="name">Duel of the Day</div><div class="hook">One ranked match a day vs a random rival, season ladder.</div><div class="money"><b>$</b>extra matches + skins</div></div>
+</div></section>
+
+<footer>
+  <p><strong>Money model, in plain words:</strong> the games are free. We earn from cosmetics (skins/decor), small boosters &amp; refills, skill-based entry pots (we keep ~5%), premium content packs, and a season pass. All whitehat — cosmetic &amp; skill, no pay-to-win casino.</p>
+  <p style="margin-top:14px">🎮 <a href="ascent.html"><b>Play the live prototype → ASCENT</b></a> (the roguelike climber) · also: <a href="jeff.html">Jackpot Jeff</a> · <a href="index.html">pitches</a></p>
+</footer>
+
+</div>
+</body>
+</html>

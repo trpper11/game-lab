@@ -1,0 +1,235 @@
+/* common.css — shared dark vibrant arcade base for boba-game-lab.
+ * Portrait-first, Telegram-webview-friendly, big touch targets.
+ * One cohesive look across all games + the hub. */
+
+:root {
+  --accent: #00e0ff;
+  --accent2: #ff2e93;
+  --accent3: #b14bff;
+  --bg: #07080f;
+  --bg2: #0e1024;
+  --panel: rgba(20, 22, 46, 0.72);
+  --panel-border: rgba(120, 140, 255, 0.22);
+  --text: #eef1ff;
+  --muted: #8b91bd;
+  --good: #36e07a;
+  --bad: #ff4d6d;
+  --radius: 18px;
+  --tap: 56px; /* minimum tap target */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+/* ---- reset ------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 800px at 50% -10%, #181b3e 0%, transparent 60%),
+    radial-gradient(900px 700px at 100% 110%, #2a0f3d 0%, transparent 55%),
+    linear-gradient(160deg, var(--bg2), var(--bg));
+  background-attachment: fixed;
+  -webkit-user-select: none;
+  user-select: none;
+}
+img, canvas { display: block; max-width: 100%; }
+button, input { font: inherit; color: inherit; }
+
+/* full-viewport stage, safe-area aware */
+.glab-stage {
+  position: fixed;
+  inset: 0;
+  padding:
+    var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- lobby kit --------------------------------------------------------- */
+.glab-lobby {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  height: 100%;
+  padding: calc(20px + var(--safe-t)) 22px calc(24px + var(--safe-b));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+.glab-title {
+  font-size: clamp(30px, 9vw, 46px);
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  line-height: 1.02;
+  background: linear-gradient(100deg, var(--accent), var(--accent3) 55%, var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(120, 80, 255, 0.45));
+}
+.glab-sub { color: var(--muted); font-size: 15px; line-height: 1.4; }
+
+.glab-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 18px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glab-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 20px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform .08s ease, box-shadow .15s ease, filter .15s ease;
+  will-change: transform;
+}
+.glab-btn.primary {
+  color: #03121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  box-shadow: 0 8px 26px rgba(0, 224, 255, 0.35), 0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.glab-btn.primary:active { transform: scale(.96); filter: brightness(1.1); }
+.glab-btn.ghost {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+}
+.glab-btn.ghost:active { transform: scale(.96); background: rgba(255,255,255,.1); }
+.glab-btn:disabled { opacity: .45; pointer-events: none; }
+
+.glab-input, .glab-code {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 18px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.glab-input:focus, .glab-code:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 224, 255, 0.18);
+}
+.glab-code {
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 10px;
+  text-transform: uppercase;
+}
+.glab-input::placeholder { color: var(--muted); letter-spacing: normal; }
+
+/* shareable room code display */
+.glab-code-show {
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  text-align: center;
+  color: var(--accent);
+  text-shadow: 0 0 22px rgba(0, 224, 255, 0.55);
+  padding: 8px 0;
+}
+
+/* connected players list */
+.glab-players {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0;
+}
+.glab-players li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-weight: 600;
+  animation: glab-pop .25s ease;
+}
+.glab-players .dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 10px var(--good);
+  flex: 0 0 auto;
+}
+.glab-players .dot.bot { background: var(--accent3); box-shadow: 0 0 10px var(--accent3); }
+.glab-players .you { margin-left: auto; color: var(--muted); font-size: 13px; }
+
+.glab-row { display: flex; gap: 10px; }
+.glab-row > * { flex: 1; }
+
+/* toast (used by Net.share fallback) */
+.glab-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + var(--safe-b));
+  transform: translate(-50%, 20px);
+  background: rgba(10, 12, 30, 0.95);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  max-width: 90vw;
+  text-align: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease, transform .3s ease;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+}
+.glab-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* juice helpers reusable by games */
+@keyframes glab-pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes glab-shake {
+  0%,100% { transform: translate(0,0); }
+  20% { transform: translate(-6px, 3px); }
+  40% { transform: translate(5px, -4px); }
+  60% { transform: translate(-4px, -2px); }
+  80% { transform: translate(3px, 4px); }
+}
+.glab-shake { animation: glab-shake .35s ease; }
+.glab-pop { animation: glab-pop .25s ease; }
+
+.glab-spacer { flex: 1; }
+.glab-center { display: flex; align-items: center; justify-content: center; }
+.glab-hide { display: none !important; }

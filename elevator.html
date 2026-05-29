@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Haunted Elevator — Story Bible</title>
+<style>
+  :root{
+    --bg:#06060c;--panel:#10111a;--panel-2:#181a26;--ink:#ececf4;--muted:#9092a6;
+    --red:#ff3b4a;--cyan:#5ce1ff;--gold:#ffd166;--green:#7ddf64;--purple:#b16cff;--line:#262838;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:19px;line-height:1.7;
+    background-image:radial-gradient(circle at 20% 10%,rgba(177,108,255,.06),transparent 40%),
+                     radial-gradient(circle at 80% 80%,rgba(255,59,74,.05),transparent 40%);
+    background-attachment:fixed}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px 60px}
+  .topnav{padding:18px 0;display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid var(--line);margin-bottom:0}
+  .topnav a{color:var(--muted);text-decoration:none;font-size:14px;letter-spacing:1px;
+    text-transform:uppercase}
+  .topnav a:hover{color:var(--cyan)}
+  .topnav .crumb{color:var(--gold);font-weight:700}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative;height:540px;margin:0 -24px 50px;overflow:hidden;
+    border-bottom:1px solid var(--line)}
+  .hero-img{position:absolute;inset:0;background-size:cover;background-position:center;
+    background-image:url('https://images.unsplash.com/photo-1741004420898-1f80e350efc9?w=1800&q=85&auto=format&fit=crop');
+    filter:brightness(.5) contrast(1.1) saturate(.7);animation:slowZoom 30s ease-in-out infinite alternate}
+  @keyframes slowZoom{0%{transform:scale(1)}100%{transform:scale(1.08)}}
+  .hero-gradient{position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(0,0,0,.4) 0%,transparent 30%,rgba(6,6,12,.4) 60%,var(--bg) 100%)}
+  .hero-content{position:absolute;left:0;right:0;bottom:60px;text-align:center;padding:0 24px}
+  .hero-tag{display:inline-block;padding:5px 14px;border:1px solid var(--gold);color:var(--gold);
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:18px;
+    background:rgba(0,0,0,.4);border-radius:4px}
+  .hero h1{font-size:64px;margin:0 0 18px;letter-spacing:1px;line-height:1.05;
+    text-shadow:0 4px 30px rgba(0,0,0,.9), 0 0 60px rgba(255,59,74,.3)}
+  .hero h1 .accent{color:var(--red)}
+  .hero-sub{font-size:21px;color:#d0d2e0;max-width:680px;margin:0 auto;
+    text-shadow:0 2px 8px rgba(0,0,0,.9)}
+  .hero-led{position:absolute;top:30px;right:30px;background:#000;color:var(--red);
+    font-family:'Courier New',monospace;font-size:32px;padding:6px 16px;border-radius:4px;
+    border:1px solid #330000;letter-spacing:4px;text-shadow:0 0 12px var(--red);
+    font-weight:700;width:100px;text-align:center;box-shadow:0 0 30px rgba(255,59,74,.4)}
+  .hero-led::after{content:'13';animation:flickerNum 5s steps(1) infinite}
+  @keyframes flickerNum{
+    0%,40%{content:'13'}42%{content:'??'}44%{content:'13'}
+    60%{content:'-1'}62%{content:'13'}75%{content:'∞'}78%{content:'13'}
+    90%{content:'00'}92%{content:'13'}
+  }
+  .scanlines{position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0,rgba(0,0,0,.18) 1px,transparent 1px,transparent 4px)}
+  .flicker{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;
+    animation:flick 7s steps(1) infinite;mix-blend-mode:overlay}
+  @keyframes flick{0%,95%{opacity:0}96%{opacity:.4}97%{opacity:0}98%{opacity:.3}99%{opacity:0}}
+
+  /* ---------- COMMON ---------- */
+  h2{font-size:34px;margin:60px 0 20px;color:var(--cyan);letter-spacing:.3px;
+    border-bottom:2px solid var(--cyan);padding-bottom:8px;
+    text-shadow:0 0 14px rgba(92,225,255,.25)}
+  h3{font-size:24px;margin:30px 0 14px;color:var(--gold)}
+  h4{font-size:20px;margin:14px 0 6px;color:var(--ink)}
+  p{margin:10px 0 14px}
+  .lead{color:var(--muted);font-size:18px;max-width:780px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:24px 26px;margin:20px 0;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+  .card.red{border-left:4px solid var(--red)}
+  .card.cyan{border-left:4px solid var(--cyan)}
+  .card.gold{border-left:4px solid var(--gold)}
+  .card.green{border-left:4px solid var(--green)}
+  .card.purple{border-left:4px solid var(--purple)}
+  ul{padding-left:24px;margin:8px 0 14px}
+  li{margin:8px 0}
+  .tag{display:inline-block;background:var(--panel-2);color:var(--muted);
+    padding:3px 11px;border-radius:999px;font-size:14px;margin:2px 6px 2px 0;
+    border:1px solid var(--line)}
+  .pull-card{background:linear-gradient(135deg,#1a0a0e,#0c0a14);
+    padding:30px;border-radius:14px;border:1px solid var(--line);margin:24px 0;
+    text-align:center}
+  .pull-card h3{margin-top:0}
+  .quote{font-size:22px;color:var(--gold);font-style:italic;
+    border-left:3px solid var(--gold);padding:14px 22px;margin:18px 0;
+    background:rgba(255,209,102,.06);border-radius:0 8px 8px 0}
+  .twist{background:rgba(255,59,74,.08);border:1px dashed var(--red);
+    padding:14px 18px;margin:14px 0;border-radius:8px}
+  .twist b{color:var(--red);letter-spacing:1px;font-size:14px;
+    text-transform:uppercase;display:block;margin-bottom:4px}
+
+  /* ---------- CHARACTERS ---------- */
+  .cast-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:18px 0}
+  .character{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;transition:transform .25s ease}
+  .character:hover{transform:translateY(-3px)}
+  .character .portrait{height:200px;background-size:cover;background-position:center;
+    position:relative;filter:grayscale(.4) contrast(1.1) brightness(.85)}
+  .character .portrait::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.85))}
+  .character .body{padding:14px 16px}
+  .character h4{margin:0 0 4px;font-size:18px}
+  .character .role{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--red);margin-bottom:6px;font-weight:700}
+  .character.cyan .role{color:var(--cyan)}
+  .character.gold .role{color:var(--gold)}
+  .character.purple .role{color:var(--purple)}
+  .character.green .role{color:var(--green)}
+  .character p{margin:4px 0;font-size:14px;color:var(--muted);line-height:1.5}
+  .character .voice{font-size:13px;color:var(--ink);font-style:italic;margin-top:6px}
+
+  /* ---------- TIERS ---------- */
+  .tiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin:14px 0}
+  .tier{position:relative;height:200px;border-radius:12px;overflow:hidden;
+    border:1px solid var(--line);background:#000}
+  .tier .timg{position:absolute;inset:0;background-size:cover;background-position:center;
+    filter:brightness(.55) contrast(1.1);transition:transform .6s ease}
+  .tier:hover .timg{transform:scale(1.08)}
+  .tier .toverlay{position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.9))}
+  .tier .tbody{position:absolute;left:0;right:0;bottom:0;padding:14px 16px}
+  .tier h4{margin:0 0 4px;font-size:18px}
+  .tier .tdiff{font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .tier.easy .tdiff{color:var(--green)}
+  .tier.med .tdiff{color:var(--cyan)}
+  .tier.hard .tdiff{color:var(--gold)}
+  .tier.night .tdiff{color:var(--red)}
+  .tier p{margin:4px 0 0;font-size:13px;color:#c0c2d0;line-height:1.4}
+
+  /* ---------- STORY ---------- */
+  .story-act{position:relative;margin:30px 0;border-radius:14px;overflow:hidden;
+    border:1px solid var(--line);background:var(--panel)}
+  .story-img{height:260px;background-size:cover;background-position:center;position:relative;
+    filter:brightness(.6) contrast(1.05)}
+  .story-img::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 40%,var(--panel))}
+  .story-content{padding:0 28px 24px;margin-top:-50px;position:relative;z-index:2}
+  .story-content .actlabel{display:inline-block;padding:4px 12px;background:var(--red);
+    color:#fff;font-size:11px;letter-spacing:2px;text-transform:uppercase;border-radius:4px;
+    font-weight:700;margin-bottom:10px}
+  .story-content h3{margin:0 0 10px;font-size:26px;color:var(--ink)}
+
+  /* ---------- ROLES ---------- */
+  .role-card{display:flex;gap:16px;padding:18px;background:var(--panel-2);
+    border-radius:10px;margin:10px 0;border:1px solid var(--line)}
+  .role-icon{width:60px;height:60px;flex-shrink:0;background:#000;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900}
+  .role-icon.r1{color:var(--gold);border:2px solid var(--gold)}
+  .role-icon.r2{color:var(--cyan);border:2px solid var(--cyan)}
+  .role-icon.r3{color:var(--purple);border:2px solid var(--purple)}
+  .role-icon.r4{color:var(--green);border:2px solid var(--green)}
+  .role-icon.rlog{color:#888;border:2px dashed #888}
+  .role-card .body{flex:1}
+  .role-card h4{margin:0 0 4px;font-size:18px}
+  .role-card .duties{margin:6px 0;font-size:15px;color:var(--muted)}
+
+  /* ---------- POWERS ---------- */
+  .power-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:16px 0}
+  .power{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+    padding:14px;position:relative}
+  .power.tier-1{border-top:3px solid var(--green)}
+  .power.tier-2{border-top:3px solid var(--cyan)}
+  .power.tier-3{border-top:3px solid var(--gold)}
+  .power.tier-4{border-top:3px solid var(--purple)}
+  .power h4{margin:0 0 4px;font-size:16px}
+  .power .cost{position:absolute;top:8px;right:10px;font-size:11px;color:var(--gold);letter-spacing:1px}
+  .power p{margin:4px 0 0;font-size:14px;color:var(--muted);line-height:1.5}
+
+  .ending{padding:18px 22px;margin:12px 0;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:10px}
+  .ending.up{border-left:4px solid var(--green)}
+  .ending.down{border-left:4px solid var(--red)}
+  .ending h4{margin:0 0 6px;font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<nav class="topnav">
+  <a href="index.html">← back to chooser</a>
+  <span class="crumb">Game 1 — Haunted Elevator</span>
+  <a href="subway.html">subway →</a>
+</nav>
+
+<!-- ======= HERO ======= -->
+<div class="hero">
+  <div class="hero-img"></div>
+  <div class="hero-gradient"></div>
+  <div class="scanlines"></div>
+  <div class="flicker"></div>
+  <div class="hero-led"></div>
+  <div class="hero-content">
+    <div class="hero-tag">Lead Title · 2–4 Players · Coop Horror</div>
+    <h1>Haunted <span class="accent">Elevator</span></h1>
+    <p class="hero-sub">An elevator from 1888. A sorcerer who built it. An AI he bound inside.
+      Four friends. Magic. And one Log who screams.</p>
+  </div>
+</div>
+
+<!-- ======= LOGLINE ======= -->
+<div class="pull-card">
+  <h3>Logline</h3>
+  <p style="font-size:20px;line-height:1.5;margin:0;color:#d8d8e4">
+    2 to 4 friends step into an old elevator at midnight. The doors close.
+    The doors won't open. They travel together through cursed hotels, hospitals,
+    and asylums that don't exist on any map. Each player wields a different school of magic.
+    One player wields nothing at all.
+  </p>
+</div>
+
+<!-- ======= WORLD ======= -->
+<h2>The World</h2>
+<div class="card cyan">
+  <p>In 1888, an architect named <b>Cornelius Vain</b> founded <b>The Vertikal Group</b> —
+    a company that built grand hotels, asylums, and hospitals across Europe and America.
+    Every Vertikal building has one floor missing from the public blueprints.</p>
+  <p>Cornelius was a sorcerer. He believed elevators were not transportation —
+    they were <b>doors between worlds</b>. He bound a sliver of his own soul into the
+    cables of one master elevator and hid it inside every building he ever designed.
+    To ride it is to ride <i>him</i>.</p>
+  <p>It is now 137 years later. The Vertikal Group is bankrupt. The elevator still runs.
+    Every night at midnight, it picks up passengers who pressed the wrong button.</p>
+</div>
+
+<!-- ======= CAST ======= -->
+<h2>The Cast</h2>
+<p class="lead">Reference images below are mood-board only — pulled from free photography
+  so you and your friends can <i>see</i> what these characters might feel like.
+  Final designs will be custom-drawn.</p>
+
+<div class="cast-grid">
+
+  <div class="character">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">The Bound AI</div>
+      <h4>OTIS</h4>
+      <p>The voice that speaks between floors. A familiar trapped in the elevator's
+        control board for 137 years. Polite. Calm. Wrong. Wants to be free.</p>
+      <p class="voice">"Going up. Or… are we?"</p>
+    </div>
+  </div>
+
+  <div class="character purple">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1633380170808-9404cd630e82?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Recurring Boss</div>
+      <h4>Patient 17</h4>
+      <p>A witch from 1934 who took the elevator and never came back. Only visible
+        in mirrors and polished floors. Whispers your real Telegram username.</p>
+    </div>
+  </div>
+
+  <div class="character cyan">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1753550639305-92c17f3532db?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Curio Vendor</div>
+      <h4>The Bellhop</h4>
+      <p>A faceless figure in red. Appears between floors. Hands you items.
+        Sometimes the items are spell components. Sometimes they bite.</p>
+    </div>
+  </div>
+
+  <div class="character green">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1741993348688-544565cfcfe3?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Only Living NPC</div>
+      <h4>The Janitor</h4>
+      <p>Pushes a cart between floors. Sells flashlights, salt, holy water,
+        and rare spellbooks for Bones. Knows everyone's name. Used to be a doctor.</p>
+    </div>
+  </div>
+
+  <div class="character">
+    <div class="portrait" style="background-image:url('https://images.unsplash.com/photo-1741004420898-1f80e350efc9?w=600&q=80&auto=format&fit=crop')"></div>
+    <div class="body">
+      <div class="role">Final Boss</div>
+      <h4>Cornelius Vain</h4>
+      <p>Sorcerer-king. Believed dead 137 years ago. Lives in the Penthouse.
+        Speaks through architecture itself — walls move, doors swap, floors lie.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======= BUILDINGS / TIERS ======= -->
+<h2>The Buildings — Difficulty Tiers</h2>
+<div class="tiers">
+  <div class="tier easy">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1753550639305-92c17f3532db?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Easy · 5 floors</div>
+      <h4>The Hotel</h4>
+      <p>Tutorial. Ghost bellhop. Missing key. Locked rooms.</p>
+    </div>
+  </div>
+  <div class="tier med">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1741993348688-544565cfcfe3?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Medium · 10 floors</div>
+      <h4>The Hospital</h4>
+      <p>Power flickers. A gurney rolls. The surgeon ghost asks "scalpel?"</p>
+    </div>
+  </div>
+  <div class="tier hard">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1633380170808-9404cd630e82?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Hard · 20 floors</div>
+      <h4>The Asylum</h4>
+      <p>Doors lie about floor numbers. Patient files reveal what's hunting you.</p>
+    </div>
+  </div>
+  <div class="tier night">
+    <div class="timg" style="background-image:url('https://images.unsplash.com/photo-1741004420898-1f80e350efc9?w=800&q=80&auto=format&fit=crop')"></div>
+    <div class="toverlay"></div>
+    <div class="tbody">
+      <div class="tdiff">Endless · ∞ floors</div>
+      <h4>The Tower</h4>
+      <p>Procedural. Daily leaderboard. Top 10 cash out big in TON.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======= ROLES ======= -->
+<h2>Player Roles — Each Player Has a Job</h2>
+<p class="lead">A 4-player game randomly assigns 3 of the 4 magical classes below, plus
+  one Log every time. A 2-player game = 1 mage + 1 Log. Roles shuffle between runs.</p>
+
+<div class="card purple">
+
+  <div class="role-card">
+    <div class="role-icon r1">L</div>
+    <div class="body">
+      <h4>The Lantern — Light Mage</h4>
+      <div class="duties"><b>Constant tasks:</b> hold the team's light, scout dark
+        corridors, recharge candles each floor. <b>Magic school: Photomancy.</b>
+        Without them, the team plays in pitch black and gets attacked on cooldown.</div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r2">C</div>
+    <div class="body">
+      <h4>The Cipher — Rune Mage</h4>
+      <div class="duties"><b>Constant tasks:</b> read symbols on doors, translate
+        ghost-language scrawled on walls, solve sigils. <b>Magic school: Runecraft.</b>
+        Without them, the team gets stuck on every locked door.</div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r3">M</div>
+    <div class="body">
+      <h4>The Medium — Soul Mage</h4>
+      <div class="duties"><b>Constant tasks:</b> speak with ghosts to get the floor
+        objective, exorcise lesser entities, hear OTIS's true intent. <b>Magic school:
+        Necromancy.</b> Without them, players run missions blind.</div>
+    </div>
+  </div>
+
+  <div class="role-card">
+    <div class="role-icon r4">W</div>
+    <div class="body">
+      <h4>The Ward — Blood Mage</h4>
+      <div class="duties"><b>Constant tasks:</b> draw protective circles on the floor,
+        tank monster swings, revive downed teammates. <b>Magic school: Hemomancy.</b>
+        Without them, the team dies in three hits.</div>
+    </div>
+  </div>
+
+  <div class="role-card" style="border:1px dashed #888;background:#0c0c12">
+    <div class="role-icon rlog">≡</div>
+    <div class="body">
+      <h4>The Log — useless. unmoving. essential.</h4>
+      <div class="duties"><b>Constant tasks:</b> nothing. Truly nothing. Two buttons:
+        <code style="background:#000;color:var(--cyan);padding:2px 6px;border-radius:4px">SCREAM</code>
+        and
+        <code style="background:#000;color:var(--cyan);padding:2px 6px;border-radius:4px">BE PULLED</code>.<br><br>
+        The team must physically drag the Log between rooms. The Log slows the team.
+        The Log moans at random. NPCs ridicule them ("Why have you brought… <i>that</i>?").
+        The team CAN leave the Log behind to die — but if they do, the elevator descends
+        one extra floor as punishment.<br><br>
+        <b>Hidden ace:</b> once per run, the Log's SCREAM stuns every monster on the
+        current floor for 4 seconds. The Log doesn't know they can do this until they
+        accidentally press the button.<br><br>
+        <b>Reward:</b> Log earns no Bones individually — but if the team wins, the Log
+        gets 50% of the team's total Bones as the "you carried me" bonus. Often the
+        highest payout on the team.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======= MAGIC TREE ======= -->
+<h2>Magic & Powers — The Spell Tree</h2>
+<p class="lead">Each magic class has a 12-spell tree across 4 tiers. Players unlock spells
+  by spending <b>Bones</b> and reaching level milestones. Tier-4 spells require <b>team-level</b>
+  milestones — all 4 players must complete the Asylum tier together to unlock them.</p>
+
+<div class="card gold">
+  <h3 style="margin-top:0">Photomancy — The Lantern</h3>
+  <div class="power-grid">
+    <div class="power tier-1"><div class="cost">50 Bones</div><h4>Candle</h4><p>3m light, drains in 60s.</p></div>
+    <div class="power tier-1"><div class="cost">120 Bones</div><h4>Lantern</h4><p>6m light, 3 minutes.</p></div>
+    <div class="power tier-2"><div class="cost">300 Bones</div><h4>Sunburst</h4><p>10s flash stuns shadow entities.</p></div>
+    <div class="power tier-2"><div class="cost">450 Bones</div><h4>Beacon</h4><p>Plant a light ghosts can't cross.</p></div>
+    <div class="power tier-3"><div class="cost">1200 · Lvl 8</div><h4>Refraction</h4><p>Bend light around corners.</p></div>
+    <div class="power tier-3"><div class="cost">1500 · Lvl 10</div><h4>Mirror Walk</h4><p>Teleport between reflections.</p></div>
+    <div class="power tier-4"><div class="cost">4000 · TEAM 15</div><h4>Daybreak</h4><p>Force "morning" — monsters docile 90s.</p></div>
+    <div class="power tier-4"><div class="cost">7500 · TEAM 20</div><h4>OTIS Override</h4><p>Blind OTIS for one floor.</p></div>
+  </div>
+</div>
+
+<div class="card cyan">
+  <h3 style="margin-top:0">Runecraft — The Cipher</h3>
+  <div class="power-grid">
+    <div class="power tier-1"><div class="cost">50 Bones</div><h4>Read Ward</h4><p>See rune above door from afar.</p></div>
+    <div class="power tier-1"><div class="cost">120 Bones</div><h4>Unbind</h4><p>Open any tier-1 locked door.</p></div>
+    <div class="power tier-2"><div class="cost">300 Bones</div><h4>False Floor</h4><p>Make real floor appear fake to monsters.</p></div>
+    <div class="power tier-2"><div class="cost">450 Bones</div><h4>Echo</h4><p>Hear last 5s of any room.</p></div>
+    <div class="power tier-3"><div class="cost">1200 · Lvl 8</div><h4>Counterspell</h4><p>Cancel one Cornelius room-shift.</p></div>
+    <div class="power tier-3"><div class="cost">1500 · Lvl 10</div><h4>Bound Word</h4><p>Force one NPC to answer honestly.</p></div>
+    <div class="power tier-4"><div class="cost">4000 · TEAM 15</div><h4>Architect's Hand</h4><p>Move one wall once per floor.</p></div>
+    <div class="power tier-4"><div class="cost">7500 · TEAM 20</div><h4>Unwriting</h4><p>Erase a floor. Skip it.</p></div>
+  </div>
+</div>
+
+<div class="card purple">
+  <h3 style="margin-top:0">Necromancy — The Medium</h3>
+  <div class="power-grid">
+    <div class="power tier-1"><div class="cost">50 Bones</div><h4>Whisper</h4><p>Hear nearest ghost's last words.</p></div>
+    <div class="power tier-1"><div class="cost">120 Bones</div><h4>Marked Soul</h4><p>See which player Cornelius has marked.</p></div>
+    <div class="power tier-2"><div class="cost">300 Bones</div><h4>Lesser Exorcism</h4><p>Banish one tier-1 ghost.</p></div>
+    <div class="power tier-2"><div class="cost">450 Bones</div><h4>Borrowed Eyes</h4><p>See next floor through a ghost.</p></div>
+    <div class="power tier-3"><div class="cost">1200 · Lvl 8</div><h4>Pact</h4><p>Trade Bones to a ghost for a Shard location.</p></div>
+    <div class="power tier-3"><div class="cost">1500 · Lvl 10</div><h4>Revive</h4><p>Bring teammate back at 50% HP.</p></div>
+    <div class="power tier-4"><div class="cost">4000 · TEAM 15</div><h4>Soul Cage</h4><p>Trap Patient 17 for 30s.</p></div>
+    <div class="power tier-4"><div class="cost">7500 · TEAM 20</div><h4>Speak With Cornelius</h4><p>Skip Act II boss via persuasion.</p></div>
+  </div>
+</div>
+
+<div class="card red">
+  <h3 style="margin-top:0">Hemomancy — The Ward</h3>
+  <div class="power-grid">
+    <div class="power tier-1"><div class="cost">50 Bones</div><h4>Blood Circle</h4><p>2m circle, no entity enters for 20s.</p></div>
+    <div class="power tier-1"><div class="cost">120 Bones</div><h4>Iron Skin</h4><p>50% less damage 30s. Costs 10% HP.</p></div>
+    <div class="power tier-2"><div class="cost">300 Bones</div><h4>Bind Wound</h4><p>Heal teammate to full.</p></div>
+    <div class="power tier-2"><div class="cost">450 Bones</div><h4>Bloodlink</h4><p>Share HP with a teammate.</p></div>
+    <div class="power tier-3"><div class="cost">1200 · Lvl 8</div><h4>Wrath Mark</h4><p>Double damage to one monster 15s.</p></div>
+    <div class="power tier-3"><div class="cost">1500 · Lvl 10</div><h4>Sacrifice</h4><p>Die for a teammate. Become a ghost ally.</p></div>
+    <div class="power tier-4"><div class="cost">4000 · TEAM 15</div><h4>Crimson Aegis</h4><p>Team invincibility 8s. You die after.</p></div>
+    <div class="power tier-4"><div class="cost">7500 · TEAM 20</div><h4>Heart of Cornelius</h4><p>Auto-win final boss.</p></div>
+  </div>
+</div>
+
+<!-- ======= CREDIT FLOW ======= -->
+<div class="card green">
+  <h3 style="margin-top:0">How Bones → Powers → TON</h3>
+  <ul>
+    <li><b>Earn Bones</b> by surviving floors, completing missions, helping teammates.</li>
+    <li><b>Spend Bones</b> on spell unlocks in your class tree (tiers 1–4).</li>
+    <li><b>Player Level</b> — grinds solo. Unlocks tier 3.</li>
+    <li><b>Team Level</b> — only grows when your party of 4 finishes harder tiers together. Unlocks tier 4. Friends only.</li>
+    <li><b>Swap leftover Bones → TON</b> at the in-game exchange. 5% fee.</li>
+    <li><b>Rare drops</b> — spell scrolls drop from bosses. Tradable as TON NFTs.</li>
+  </ul>
+</div>
+
+<!-- ======= STORYLINE ======= -->
+<h2>The Storyline</h2>
+
+<div class="story-act">
+  <div class="story-img" style="background-image:url('https://images.unsplash.com/photo-1753550639305-92c17f3532db?w=1200&q=80&auto=format&fit=crop')"></div>
+  <div class="story-content">
+    <div class="actlabel">Act I — The Doors Close</div>
+    <h3>Chapters 1–3: Lobby → Hotel → Floor 13</h3>
+    <p>Players spawn in the Royal Hotel lobby at midnight. They step into the elevator
+      together. Doors close. Tutorial floors 1–5 teach magic basics. At floor 13 —
+      a floor that shouldn't exist — OTIS speaks for the first time.</p>
+    <div class="quote">"Going up. Or… are we? Either way — please mind your reflection."</div>
+    <div class="twist"><b>End of Act I</b>
+      The floor counter climbs while the car sits still. Something is moving in the
+      shaft past the elevator. The Log screams for the first time. It actually helps.</div>
+  </div>
+</div>
+
+<div class="story-act">
+  <div class="story-img" style="background-image:url('https://images.unsplash.com/photo-1741993348688-544565cfcfe3?w=1200&q=80&auto=format&fit=crop')"></div>
+  <div class="story-content">
+    <div class="actlabel">Act II — The Building Has a Secret</div>
+    <h3>Chapters 4–6: Hospital → Asylum → The Architect Speaks</h3>
+    <p>Hospital tier (10 floors) introduces tier-2 spells. Players find the first
+      Memory Shard — Cornelius's blueprints, hidden in a mattress. Asylum tier
+      reveals every former patient was a previous passenger. Patient 17 whispers
+      Telegram usernames. Cornelius himself speaks.</p>
+    <div class="quote">"You may take the children. You may keep your names. I only need one of you."</div>
+    <div class="twist"><b>End of Act II — The Mark</b>
+      One player receives a private Telegram DM from OTIS. They've been chosen
+      to become the next Bound AI. They cannot tell their teammates — if they do,
+      the elevator stops and everyone fails.</div>
+  </div>
+</div>
+
+<div class="story-act">
+  <div class="story-img" style="background-image:url('https://images.unsplash.com/photo-1633380170808-9404cd630e82?w=1200&q=80&auto=format&fit=crop')"></div>
+  <div class="story-content">
+    <div class="actlabel">Act III — The Choice</div>
+    <h3>Chapter 7: Penthouse or Basement</h3>
+    <p>Players vote. The elevator moves accordingly. Final boss arena depends on direction.</p>
+
+    <div class="ending up">
+      <h4>Ending A — The Penthouse (UP)</h4>
+      <p>Multi-phase coop boss against Cornelius. Players split into different "versions"
+        of the room, must reunite through windows. Win → cycle broken, sunrise.
+        Unlock: <b>Architect's Gold Skin (TON NFT)</b>.</p>
+    </div>
+
+    <div class="ending down">
+      <h4>Ending B — The Basement (DOWN)</h4>
+      <p>The marked player accepts. They become the next OTIS. Friends walk out alive.
+        Their recorded voice now narrates the elevator for every future player.
+        Unlock: <b>OTIS Crown Skin (TON NFT)</b> + 1% passive royalty on all future
+        Bones swaps from rooms they narrate. Permanent.</p>
+    </div>
+
+    <div class="quote">"Floor One. Lobby. Have a pleasant evening. We've enjoyed your visit."</div>
+  </div>
+</div>
+
+<!-- ======= MONETIZATION ======= -->
+<h2>How It Earns</h2>
+
+<div class="card green">
+  <ul>
+    <li><b>Free to play.</b> 5 runs/day per Telegram account. Extra runs = 0.1 TON each.</li>
+    <li><b>Power purchases.</b> All spells cost Bones, earned in-game OR bought directly with TON.</li>
+    <li><b>Cosmetic skins</b> for elevator interior, your character, even the Log itself. Limited drops.</li>
+    <li><b>Season Pass</b> monthly. Asylum cosmetics + bonus Bones.</li>
+    <li><b>Spell-scroll NFTs.</b> Tier-4 spells can be unlocked as tradable NFTs.</li>
+    <li><b>Revives.</b> Friend died? Spend Bones to revive. Token sink.</li>
+    <li><b>Swap fee.</b> 5% on every Bones → TON conversion. House cut.</li>
+    <li><b>Leaderboard pool.</b> Daily. House seeds, players grow it, house keeps 10%.</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

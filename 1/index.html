@@ -1,0 +1,1545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>GORGE — Live Eat &amp; Grow Arena</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link rel="stylesheet" href="../common.css">
+<style>
+  /* ===== GORGE game-specific ===== */
+  #game { position:fixed; inset:0; display:none; }
+  #game.on { display:block; }
+  #cv { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+
+  /* HUD top bar */
+  .hud-top{
+    position:absolute; left:0; right:0; top:0; z-index:6;
+    padding: calc(8px + var(--safe-t)) 12px 8px;
+    display:flex; gap:8px; align-items:flex-start; pointer-events:none;
+  }
+  .hud-pill{
+    background:rgba(8,10,24,.62); border:1px solid var(--panel-border);
+    border-radius:14px; padding:7px 11px; backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px); box-shadow:0 6px 20px rgba(0,0,0,.4);
+    line-height:1.1;
+  }
+  .hud-pill .lbl{ font-size:9px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
+  .hud-pill .val{ font-size:18px; font-weight:900; }
+  .hud-timer .val{ color:var(--accent); text-shadow:0 0 12px rgba(0,224,255,.6); }
+  .hud-rank .val{ color:#ffd34d; text-shadow:0 0 12px rgba(255,211,77,.5); }
+  .hud-mass .val{ color:var(--good); text-shadow:0 0 12px rgba(54,224,122,.5); }
+  .hud-spacer{ flex:1; }
+
+  /* leaderboard */
+  .board{
+    position:absolute; right:10px; top:calc(58px + var(--safe-t)); z-index:6;
+    width:148px; pointer-events:none;
+    background:rgba(8,10,24,.55); border:1px solid var(--panel-border);
+    border-radius:14px; padding:8px 9px; backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+  }
+  .board h4{ font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+  .board .row{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:2px 0; }
+  .board .row .sw{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 6px currentColor; }
+  .board .row .nm{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .board .row .ms{ color:var(--muted); font-variant-numeric:tabular-nums; }
+  .board .row.me .nm{ color:var(--accent); }
+  .board .row.dead{ opacity:.4; }
+
+  /* minimap (top-right corner, below leaderboard area — portrait-safe) */
+  #minimap{
+    position:absolute; right:10px; bottom:calc(170px + var(--safe-b)); z-index:6;
+    width:88px; height:88px; pointer-events:none;
+    border-radius:14px; border:1px solid var(--panel-border);
+    background:rgba(8,10,24,.55); backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px); box-shadow:0 6px 20px rgba(0,0,0,.4);
+  }
+
+  /* big center banner for rule flips / round */
+  .banner{
+    position:absolute; left:0; right:0; top:38%; z-index:8; text-align:center;
+    pointer-events:none; opacity:0;
+  }
+  .banner.show{ animation:bannerPop 1.9s ease forwards; }
+  .banner .big{ font-size:clamp(30px,11vw,56px); font-weight:900; letter-spacing:1px;
+    filter:drop-shadow(0 0 20px currentColor); line-height:1; }
+  .banner .small{ font-size:14px; letter-spacing:3px; text-transform:uppercase; color:var(--text); opacity:.85; margin-top:6px; }
+  @keyframes bannerPop{
+    0%{ opacity:0; transform:scale(.6); }
+    14%{ opacity:1; transform:scale(1.08); }
+    24%{ transform:scale(1); }
+    80%{ opacity:1; }
+    100%{ opacity:0; transform:scale(.95); }
+  }
+
+  /* full screen flash */
+  #flash{ position:absolute; inset:0; z-index:7; pointer-events:none; opacity:0; }
+  #flash.go{ animation:flashHit .5s ease; }
+  @keyframes flashHit{ 0%{opacity:.55;} 100%{opacity:0;} }
+
+  /* active power chips */
+  .powerchips{
+    position:absolute; left:0; right:0; top:calc(58px + var(--safe-t)); z-index:6;
+    display:flex; flex-direction:column; gap:6px; align-items:flex-start;
+    padding-left:10px; pointer-events:none;
+  }
+  .pchip{ font-size:11px; font-weight:800; letter-spacing:1px; padding:5px 9px; border-radius:10px;
+    background:rgba(8,10,24,.6); border:1px solid currentColor; box-shadow:0 0 12px currentColor; }
+
+  /* joystick */
+  #stick{ position:absolute; z-index:6; width:118px; height:118px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.16); background:rgba(8,10,24,.32);
+    display:none; pointer-events:none; }
+  #stick .nub{ position:absolute; left:50%; top:50%; width:48px; height:48px; margin:-24px 0 0 -24px;
+    border-radius:50%; background:radial-gradient(circle at 35% 30%,#fff,var(--accent));
+    box-shadow:0 0 18px var(--accent); }
+
+  /* respawn / spectate overlay */
+  .deadover{
+    position:absolute; inset:0; z-index:9; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    background:radial-gradient(circle at 50% 40%,rgba(255,46,147,.18),rgba(7,8,15,.78));
+    text-align:center; padding:24px;
+  }
+  .deadover.on{ display:flex; }
+  .deadover h2{ font-size:34px; font-weight:900; color:var(--bad); filter:drop-shadow(0 0 18px var(--bad)); }
+  .deadover p{ color:var(--muted); font-size:14px; }
+
+  /* win overlay */
+  .winover{
+    position:absolute; inset:0; z-index:10; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    background:radial-gradient(circle at 50% 35%,rgba(180,75,255,.22),rgba(7,8,15,.85));
+    text-align:center; padding:24px;
+  }
+  .winover.on{ display:flex; }
+  .winover .crown{ font-size:60px; filter:drop-shadow(0 0 22px #ffd34d); }
+  .winover h2{ font-size:30px; font-weight:900; background:linear-gradient(100deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .winover .next{ color:var(--muted); font-size:13px; letter-spacing:2px; }
+
+  .topbtn{
+    position:absolute; left:10px; top:calc(8px + var(--safe-t)); z-index:11;
+    width:38px; height:38px; border-radius:11px; border:1px solid var(--panel-border);
+    background:rgba(8,10,24,.6); color:var(--text); font-size:18px; font-weight:900;
+    display:none; align-items:center; justify-content:center;
+  }
+  #game.on .topbtn{ display:flex; }
+  #muteBtn{ left:auto; right:10px; top:calc(8px + var(--safe-t)); font-size:16px; }
+
+  /* lobby player swatch */
+  .glab-players .sw{ width:14px; height:14px; border-radius:50%; box-shadow:0 0 8px currentColor; flex:0 0 auto; }
+  .nm-input{ text-transform:none; letter-spacing:0; font-size:16px; text-align:left; }
+  .status-line{ font-size:13px; color:var(--muted); text-align:center; min-height:18px; }
+  .err{ color:var(--bad); }
+</style>
+</head>
+<body>
+
+<!-- ================= LOBBY ================= -->
+<div class="glab-stage" id="lobby">
+  <div class="glab-lobby">
+    <div>
+      <div class="glab-title">GORGE</div>
+      <div class="glab-sub">Endless live eat-and-grow arena. Devour smaller blobs, flee the giants, climb the live leaderboard. Up to 10 in one room.</div>
+    </div>
+
+    <div class="glab-panel">
+      <div style="font-size:12px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Your blob name</div>
+      <input class="glab-input nm-input" id="nameIn" maxlength="12" placeholder="Tap to name yourself">
+    </div>
+
+    <!-- choose screen -->
+    <div class="glab-panel" id="choosePanel">
+      <button class="glab-btn primary" id="createBtn">Create room</button>
+      <div style="height:12px"></div>
+      <div class="glab-row">
+        <input class="glab-code" id="codeIn" maxlength="4" placeholder="CODE">
+      </div>
+      <div style="height:12px"></div>
+      <button class="glab-btn ghost" id="joinBtn">Join room</button>
+      <div style="height:8px"></div>
+      <div class="status-line" id="lobbyStatus"></div>
+    </div>
+
+    <!-- room / waiting -->
+    <div class="glab-panel glab-hide" id="roomPanel">
+      <div style="font-size:12px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;text-align:center">Room code</div>
+      <div class="glab-code-show" id="codeShow">----</div>
+      <button class="glab-btn ghost" id="shareBtn">Share / invite</button>
+      <div style="height:14px"></div>
+      <div style="font-size:12px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">In the arena</div>
+      <ul class="glab-players" id="playerList"></ul>
+      <div style="height:6px"></div>
+      <button class="glab-btn primary glab-hide" id="startBtn">Start arena</button>
+      <div class="status-line" id="waitStatus"></div>
+      <div style="height:8px"></div>
+      <button class="glab-btn ghost" id="leaveBtn" style="opacity:.7">Leave room</button>
+    </div>
+
+    <div class="glab-spacer"></div>
+    <div class="glab-sub" style="text-align:center;font-size:12px;opacity:.7">
+      Drag anywhere to steer · eat to grow · get eaten? respawn small · grab rule-flip orbs for chaos.
+    </div>
+  </div>
+</div>
+
+<!-- ================= GAME ================= -->
+<div id="game">
+  <canvas id="cv"></canvas>
+  <button class="topbtn" id="exitBtn">✕</button>
+  <button class="topbtn" id="muteBtn">🔊</button>
+
+  <div class="hud-top">
+    <div class="hud-pill hud-mass"><div class="lbl">Mass</div><div class="val" id="hudMass">10</div></div>
+    <div class="hud-pill hud-rank"><div class="lbl">Rank</div><div class="val" id="hudRank">1/1</div></div>
+    <div class="hud-spacer"></div>
+    <div class="hud-pill hud-timer"><div class="lbl" id="hudTimerLbl">Collapse in</div><div class="val" id="hudTimer">0</div></div>
+  </div>
+
+  <div class="powerchips" id="powerChips"></div>
+  <div class="board"><h4>Leaderboard</h4><div id="boardRows"></div></div>
+
+  <canvas id="minimap" width="132" height="132"></canvas>
+
+  <div id="stick"><div class="nub" id="stickNub"></div></div>
+
+  <div id="flash"></div>
+  <div class="banner" id="banner"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+
+  <div class="deadover" id="deadOver">
+    <h2>DEVOURED</h2>
+    <p id="deadMsg">Respawning when the ring resets…</p>
+  </div>
+
+  <div class="winover" id="winOver">
+    <div class="crown">👑</div>
+    <h2 id="winName">Winner</h2>
+    <div class="next" id="winNext">Next round in 4…</div>
+  </div>
+</div>
+
+<script src="../net.js"></script>
+<script src="../stats.js"></script>
+<script>
+(function(){
+'use strict';
+
+// -------------------------------------------------- constants
+var GAME_ID = 'gorge';
+var WORLD = 2600;            // base arena radius (world units) — FIXED, never shrinks
+var TICK_MS = 50;            // 20 ticks/s
+// food scales with arena area so the map is densely covered, no barren stretches
+var FOOD_COUNT = Math.round((WORLD*WORLD)/8500); // ~795 dots for a 2600-radius arena
+var FOOD_RESPAWN_PER_TICK = 14; // how many dots respawn each tick toward FOOD_COUNT
+var MAX_PLAYERS = 10;
+var MIN_LIVE_BLOBS = 5;      // bots top up to this many
+var START_MASS = 12;
+var FOOD_MASS = 2.6;         // punchier growth per dot
+var ORB_INTERVAL = [9000, 15000];
+var POWER_DUR = { reverse:6000, ghost:5000, magnet:8000 };
+
+// ----- tournament match loop: Grow -> Collapse -> Winner -> new match -----
+var GROW_MS = 120000;        // 2 min open grow phase, full arena, no shrink
+var COLLAPSE_MS = 52000;     // ring shrinks inward over ~52s (between 45-60s)
+var GRACE_WARN_MS = 10000;   // show "collapse in 10..." countdown in last 10s of grow
+var RING_MIN = 140;          // ring never shrinks below this radius
+var OUT_DAMAGE_PER_S = 0.55; // fraction of mass lost per second while outside the ring
+var SPEED_RAMP_MAX = 1.9;    // global speed multiplier at full collapse
+var WIN_RESET_MS = 4200;     // delay after a winner before reseeding a new match
+
+var COLORS = ['#00e0ff','#ff2e93','#36e07a','#ffd34d','#b14bff','#ff7b3d','#41f0d0','#ff5ea0','#6c8cff','#a0ff4d'];
+var BOT_NAMES = ['Blobzilla','Nomnom','Gulp','Sphere','Munchy','Voraxx','Chompy','Orbit','Squish','Gobble','Pacster','Bloop'];
+
+// -------------------------------------------------- helpers
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function rand(a,b){ return a+Math.random()*(b-a); }
+function dist2(ax,ay,bx,by){ var dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+function massRadius(m){ return Math.sqrt(m)*4.2 + 6; }
+function $(id){ return document.getElementById(id); }
+
+// -------------------------------------------------- audio (WebAudio only — no files)
+var AC=null;
+var muted=false;
+var masterGain=null;       // global mute-able bus for SFX + music
+function ac(){
+  if(!AC){
+    try{
+      AC=new (window.AudioContext||window.webkitAudioContext)();
+      masterGain=AC.createGain();
+      masterGain.gain.value = muted?0:1;
+      masterGain.connect(AC.destination);
+    }catch(e){}
+  }
+  return AC;
+}
+function audioBus(){ ac(); return masterGain; }
+function beep(freq, dur, type, vol){
+  var c=ac(); var bus=audioBus(); if(!c||!bus) return;
+  try{
+    var o=c.createOscillator(), g=c.createGain();
+    o.type=type||'sine'; o.frequency.value=freq;
+    g.gain.value=vol||0.06;
+    o.connect(g); g.connect(bus);
+    var t=c.currentTime; o.start(t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.stop(t+dur);
+  }catch(e){}
+}
+function sEat(){ beep(rand(420,520),0.12,'triangle',0.05); }
+function sKill(){ beep(180,0.18,'sawtooth',0.08); beep(90,0.3,'sine',0.06); }
+function sOrb(){ beep(660,0.1,'square',0.05); beep(990,0.12,'square',0.04); }
+function sDie(){ beep(140,0.5,'sawtooth',0.09); }
+
+// ---- escalating tension music for the COLLAPSE phase ----
+// Two detuned saw drones + a rhythmic pulse whose tempo & pitch rise with
+// collapse progress (0..1). Built live from oscillators; nothing loaded.
+var music={ on:false, droneA:null, droneB:null, droneGain:null, pulseGain:null,
+            lfo:null, lfoGain:null, beatTimer:null, intensity:0 };
+function startMusic(){
+  var c=ac(), bus=audioBus(); if(!c||!bus||music.on) return;
+  try{
+    music.droneGain=c.createGain(); music.droneGain.gain.value=0.0; music.droneGain.connect(bus);
+    music.droneA=c.createOscillator(); music.droneA.type='sawtooth'; music.droneA.frequency.value=55;
+    music.droneB=c.createOscillator(); music.droneB.type='sawtooth'; music.droneB.frequency.value=55*1.5; music.droneB.detune.value=8;
+    var lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.Q.value=6;
+    // wobble the filter for unease
+    music.lfo=c.createOscillator(); music.lfo.type='sine'; music.lfo.frequency.value=0.7;
+    music.lfoGain=c.createGain(); music.lfoGain.gain.value=180;
+    music.lfo.connect(music.lfoGain); music.lfoGain.connect(lp.frequency);
+    music.droneA.connect(lp); music.droneB.connect(lp); lp.connect(music.droneGain);
+    music.filter=lp;
+    music.droneA.start(); music.droneB.start(); music.lfo.start();
+    music.on=true;
+    scheduleBeat();
+  }catch(e){}
+}
+function scheduleBeat(){
+  if(!music.on) return;
+  // tempo rises with intensity: ~520ms at calm -> ~150ms at full collapse
+  var period = 520 - music.intensity*370;
+  pulseHit();
+  music.beatTimer=setTimeout(scheduleBeat, period);
+}
+function pulseHit(){
+  var c=ac(), bus=audioBus(); if(!c||!bus) return;
+  try{
+    var o=c.createOscillator(), g=c.createGain();
+    o.type='square';
+    // pitch climbs with intensity
+    o.frequency.value = 120 + music.intensity*260 + rand(-6,6);
+    g.gain.value = 0.0001;
+    var vol = 0.02 + music.intensity*0.06;
+    o.connect(g); g.connect(bus);
+    var t=c.currentTime;
+    o.start(t);
+    g.gain.exponentialRampToValueAtTime(vol, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.14);
+    o.stop(t+0.16);
+  }catch(e){}
+}
+function setMusicIntensity(v){
+  music.intensity=clamp(v,0,1);
+  if(music.on && music.droneGain){
+    var c=ac(); if(!c) return;
+    try{
+      music.droneGain.gain.setTargetAtTime(0.05+music.intensity*0.12, c.currentTime, 0.4);
+      var base=55*(1+music.intensity*0.6);
+      music.droneA.frequency.setTargetAtTime(base, c.currentTime, 0.5);
+      music.droneB.frequency.setTargetAtTime(base*1.5, c.currentTime, 0.5);
+      if(music.lfo) music.lfo.frequency.setTargetAtTime(0.7+music.intensity*3.5, c.currentTime, 0.5);
+      if(music.filter) music.filter.frequency.setTargetAtTime(420+music.intensity*1400, c.currentTime, 0.5);
+    }catch(e){}
+  }
+}
+function stopMusic(){
+  if(!music.on) return;
+  music.on=false;
+  if(music.beatTimer){ clearTimeout(music.beatTimer); music.beatTimer=null; }
+  var c=ac();
+  try{
+    if(music.droneGain&&c) music.droneGain.gain.setTargetAtTime(0.0001, c.currentTime, 0.3);
+    var stopAt=(c?c.currentTime:0)+0.5;
+    if(music.droneA) music.droneA.stop(stopAt);
+    if(music.droneB) music.droneB.stop(stopAt);
+    if(music.lfo) music.lfo.stop(stopAt);
+  }catch(e){}
+  music.droneA=music.droneB=music.lfo=music.droneGain=music.filter=null;
+}
+function sVictory(){
+  // ascending arpeggio sting
+  var notes=[523,659,784,1047,1319];
+  for(var i=0;i<notes.length;i++){ (function(n,k){ setTimeout(function(){
+    beep(n,0.5,'triangle',0.09);
+  }, k*120); })(notes[i],i); }
+}
+function setMuted(m){
+  muted=!!m;
+  var bus=audioBus(); var c=ac();
+  try{ if(bus&&c) bus.gain.setTargetAtTime(muted?0:1, c.currentTime, 0.05); }catch(e){}
+  var btn=$('muteBtn'); if(btn) btn.textContent=muted?'🔇':'🔊';
+  try{ localStorage.setItem('gorge_muted', muted?'1':'0'); }catch(e){}
+}
+
+// ==================================================
+//  ROLE STATE
+// ==================================================
+var role = null;        // 'host' | 'client'
+var net = null;         // host or client api
+var myId = null;        // my network id (host uses 'HOST')
+var myName = 'You';
+var roomCode = null;
+var players = {};        // id -> {id,name,color,isBot,ready}
+var hostStartFn = null;
+
+// shared world (host authoritative; client receives snapshots)
+var W = null;            // world state object
+
+// rendering / interp
+var renderState = null;  // latest snapshot for clients
+var prevSnap = null, curSnap = null, snapTime = 0;
+var camera = { x:0, y:0, zoom:1 };
+var particles = [];
+var shake = 0;
+var running = false;
+var rafId = null;
+
+// input
+var inputTarget = { hx:0, hy:0 }; // heading unit-ish vector from my blob
+var pointer = { active:false, sx:0, sy:0, cx:0, cy:0 };
+
+// ==================================================
+//  LOBBY WIRING
+// ==================================================
+var nameIn=$('nameIn'), createBtn=$('createBtn'), joinBtn=$('joinBtn'), codeIn=$('codeIn');
+var choosePanel=$('choosePanel'), roomPanel=$('roomPanel'), codeShow=$('codeShow');
+var shareBtn=$('shareBtn'), startBtn=$('startBtn'), playerList=$('playerList');
+var lobbyStatus=$('lobbyStatus'), waitStatus=$('waitStatus'), leaveBtn=$('leaveBtn');
+
+(function initName(){
+  var saved=''; try{ saved=localStorage.getItem('gorge_name')||''; }catch(e){}
+  if(saved) nameIn.value=saved;
+})();
+nameIn.addEventListener('input', function(){ try{ localStorage.setItem('gorge_name', nameIn.value); }catch(e){} });
+codeIn.addEventListener('input', function(){ codeIn.value=codeIn.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+
+function pickName(){
+  var n=(nameIn.value||'').trim();
+  if(!n) n='Player'+((Math.random()*900+100)|0);
+  myName=n.slice(0,12);
+  return myName;
+}
+function usedColors(){ var u={}; for(var k in players) u[players[k].color]=1; return u; }
+function freeColor(){
+  var u=usedColors();
+  for(var i=0;i<COLORS.length;i++){ if(!u[COLORS[i]]) return COLORS[i]; }
+  return COLORS[(Math.random()*COLORS.length)|0];
+}
+
+function renderPlayerList(){
+  playerList.innerHTML='';
+  var ids=Object.keys(players);
+  ids.forEach(function(id){
+    var p=players[id];
+    var li=document.createElement('li');
+    var sw=document.createElement('span'); sw.className='sw'; sw.style.color=p.color; sw.style.background=p.color;
+    var nm=document.createElement('span'); nm.textContent=p.name+(p.isBot?' (bot)':'');
+    li.appendChild(sw); li.appendChild(nm);
+    if(id===myId){ var you=document.createElement('span'); you.className='you'; you.textContent='you'; li.appendChild(you); }
+    else if(id==='HOST'){ var h=document.createElement('span'); h.className='you'; h.textContent='host'; li.appendChild(h); }
+    playerList.appendChild(li);
+  });
+}
+
+function showRoomPanel(){
+  choosePanel.classList.add('glab-hide');
+  roomPanel.classList.remove('glab-hide');
+  codeShow.textContent=roomCode;
+  if(role==='host'){ startBtn.classList.remove('glab-hide'); waitStatus.textContent='Tap Start when ready — empty slots fill with bots.'; }
+  else { startBtn.classList.add('glab-hide'); waitStatus.textContent='Waiting for host to start…'; }
+  renderPlayerList();
+}
+
+// ----- CREATE (host) -----
+createBtn.addEventListener('click', function(){
+  pickName();
+  lobbyStatus.textContent='Creating room…'; lobbyStatus.className='status-line';
+  createBtn.disabled=true; joinBtn.disabled=true;
+  Net.hostRoom({
+    maxPlayers: MAX_PLAYERS,
+    onJoin: hostOnJoin,
+    onLeave: hostOnLeave,
+    onData: hostOnData
+  }).then(function(api){
+    net=api; role='host'; myId='HOST'; roomCode=api.roomCode;
+    players={}; players['HOST']={ id:'HOST', name:myName, color:freeColor(), isBot:false, ready:true };
+    showRoomPanel();
+  }).catch(function(e){
+    lobbyStatus.textContent='Could not create room. Try again.'; lobbyStatus.className='status-line err';
+    createBtn.disabled=false; joinBtn.disabled=false;
+  });
+});
+
+// ----- JOIN (client) -----
+function doJoin(code){
+  pickName();
+  lobbyStatus.textContent='Joining '+code+'…'; lobbyStatus.className='status-line';
+  createBtn.disabled=true; joinBtn.disabled=true;
+  Net.joinRoom(code, {
+    onData: clientOnData,
+    onClose: clientOnClose,
+    onError: function(){}
+  }).then(function(api){
+    net=api; role='client'; myId=api.myId; roomCode=code;
+    // announce ourselves to host
+    net.send({ t:'hello', name:myName });
+    showRoomPanel();
+  }).catch(function(e){
+    lobbyStatus.textContent=(e&&e.message)?e.message:'Could not join.'; lobbyStatus.className='status-line err';
+    createBtn.disabled=false; joinBtn.disabled=false;
+  });
+}
+joinBtn.addEventListener('click', function(){
+  var code=(codeIn.value||'').trim().toUpperCase();
+  if(code.length<4){ lobbyStatus.textContent='Enter the 4-letter code.'; lobbyStatus.className='status-line err'; return; }
+  doJoin(code);
+});
+
+shareBtn.addEventListener('click', function(){ if(roomCode) Net.share(roomCode); });
+leaveBtn.addEventListener('click', function(){ location.reload(); });
+startBtn.addEventListener('click', function(){ if(role==='host') hostStartGame(); });
+
+// auto-join from url/telegram
+(function autoJoin(){
+  try{ if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.ready) window.Telegram.WebApp.ready(); }catch(e){}
+  var r=Net.roomFromUrl();
+  if(r){ codeIn.value=r; setTimeout(function(){ doJoin(r); }, 350); }
+})();
+
+// ==================================================
+//  HOST: lobby message handlers
+// ==================================================
+function hostOnJoin(peerId){
+  // create a provisional player; real name arrives in 'hello'
+  players[peerId]={ id:peerId, name:'Player', color:freeColor(), isBot:false, ready:true };
+  renderPlayerList();
+  broadcastLobby();
+  // if game already running, inject them live
+  if(running && W) hostAddPlayerBlob(peerId);
+}
+function hostOnLeave(peerId){
+  delete players[peerId];
+  if(W && W.blobs[peerId]){ delete W.blobs[peerId]; }
+  renderPlayerList();
+  broadcastLobby();
+}
+function hostOnData(peerId, msg){
+  if(!msg||!msg.t) return;
+  if(msg.t==='hello'){
+    if(players[peerId]){ players[peerId].name=(msg.name||'Player').slice(0,12); }
+    renderPlayerList(); broadcastLobby();
+    if(running && W && W.blobs[peerId]){ W.blobs[peerId].name=players[peerId].name; }
+  } else if(msg.t==='input'){
+    var b=W&&W.blobs[peerId];
+    if(b){ b.hx=msg.hx; b.hy=msg.hy; }
+  }
+}
+function broadcastLobby(){
+  if(role!=='host'||!net) return;
+  var arr=[]; for(var id in players){ var p=players[id]; arr.push({id:id,name:p.name,color:p.color,isBot:p.isBot}); }
+  net.broadcast({ t:'lobby', players:arr, code:roomCode });
+}
+
+// ==================================================
+//  CLIENT: message handlers
+// ==================================================
+function clientOnData(msg){
+  if(!msg||!msg.t) return;
+  if(msg.t==='lobby'){
+    players={};
+    msg.players.forEach(function(p){ players[p.id]={id:p.id,name:p.name,color:p.color,isBot:!!p.isBot}; });
+    roomCode=msg.code||roomCode;
+    if(running) {} else renderPlayerList();
+  } else if(msg.t==='start'){
+    // host says game begins; store player meta then enter game
+    startClientGame(msg);
+  } else if(msg.t==='state'){
+    onClientSnapshot(msg);
+  } else if(msg.t==='event'){
+    handleEvent(msg);
+  }
+}
+function clientOnClose(){
+  if(running){ exitToLobby(); }
+  Net.toast('Disconnected from host');
+}
+
+// ==================================================
+//  WORLD CREATION (HOST)
+// ==================================================
+function makeWorld(){
+  var w={
+    radius: WORLD,      // base full-size arena radius
+    ringR: WORLD,       // current safe-zone ring radius (shrinks in collapse)
+    tStart: Date.now(),
+    blobs: {},          // id -> blob
+    food: [],
+    orbs: [],
+    nextOrbAt: Date.now()+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]),
+    round: 1,           // tournament match number
+    phase:'grow',       // 'grow' | 'collapse' | 'win'
+    collapseAt: Date.now()+GROW_MS,  // wall-clock time the collapse begins
+    collapseStart: 0,   // set when collapse actually starts
+    speedMult: 1,       // global movement multiplier (ramps during collapse)
+    winnerId: null,
+    winAt: 0,           // when to reset into a fresh match
+    collapseBannerShown:false,
+    graceWarnShown:false,
+    botSeq:0
+  };
+  // food
+  for(var i=0;i<FOOD_COUNT;i++) w.food.push(spawnFood(w));
+  // real players
+  for(var id in players){ if(!players[id].isBot) addBlob(w, id, players[id]); }
+  return w;
+}
+function spawnFood(w){
+  var rr=Math.max(40, (w.ringR||w.radius)-30);
+  var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*rr;
+  return { x:Math.cos(a)*r, y:Math.sin(a)*r, m:FOOD_MASS, c:COLORS[(Math.random()*COLORS.length)|0] };
+}
+function safeSpawnPos(w){
+  // spawn inside the current safe ring, away from bigger blobs
+  var rr=(w.ringR||w.radius);
+  for(var tries=0;tries<14;tries++){
+    var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*(rr*0.78);
+    var x=Math.cos(a)*r, y=Math.sin(a)*r, ok=true;
+    for(var id in w.blobs){ var b=w.blobs[id]; if(!b.alive) continue;
+      if(dist2(x,y,b.x,b.y) < (massRadius(b.m)+90)*(massRadius(b.m)+90)) { ok=false; break; } }
+    if(ok) return {x:x,y:y};
+  }
+  return {x:rand(-rr*0.5,rr*0.5), y:rand(-rr*0.5,rr*0.5)};
+}
+function addBlob(w, id, meta){
+  var p=safeSpawnPos(w);
+  w.blobs[id]={
+    id:id, name:meta.name, color:meta.color, isBot:!!meta.isBot,
+    x:p.x, y:p.y, m:START_MASS, hx:0, hy:0, alive:true,
+    power:null, powerUntil:0, respawnAt:0,
+    botTargetX:p.x, botTargetY:p.y, botRetargetAt:0
+  };
+}
+function fillBots(w){
+  // count every blob slot (alive OR pending respawn) so we don't spawn endless bots
+  var slots=0; for(var id in w.blobs){ var bb=w.blobs[id]; if(bb.alive || bb.respawnAt) slots++; }
+  var realCount=0; for(var k in players){ if(!players[k].isBot) realCount++; }
+  var need = Math.max(MIN_LIVE_BLOBS, Math.min(MAX_PLAYERS, realCount+ (realCount<2? rand(3,5)|0 : 1) ));
+  need = Math.max(need, MIN_LIVE_BLOBS);
+  need = Math.min(need, MAX_PLAYERS);
+  var live=slots;
+  while(live < need){
+    var bid='bot'+(w.botSeq++);
+    var color=freeColor();
+    var nm=BOT_NAMES[(Math.random()*BOT_NAMES.length)|0];
+    var meta={ id:bid, name:nm, color:color, isBot:true };
+    players[bid]=meta;
+    addBlob(w, bid, meta);
+    // randomize bot start mass a touch
+    w.blobs[bid].m = START_MASS*rand(0.8,1.6);
+    live++;
+  }
+}
+
+// ==================================================
+//  HOST: start / loop
+// ==================================================
+function hostStartGame(){
+  startBtn.disabled=true;
+  W=makeWorld();
+  fillBots(W);
+  renderPlayerList();
+  broadcastLobby();
+  // tell clients to enter the game
+  var meta=lobbyMeta();
+  net.broadcast({ t:'start', players:meta, code:roomCode, round:W.round });
+  enterGame();
+  startHostLoop();
+}
+function lobbyMeta(){
+  var arr=[]; for(var id in players){ var p=players[id]; arr.push({id:id,name:p.name,color:p.color,isBot:!!p.isBot}); }
+  return arr;
+}
+function hostAddPlayerBlob(peerId){
+  if(W && !W.blobs[peerId] && players[peerId]){ addBlob(W, peerId, players[peerId]); }
+}
+
+var hostTimer=null;
+function startHostLoop(){
+  if(hostTimer) clearInterval(hostTimer);
+  hostTimer=setInterval(hostTick, TICK_MS);
+}
+function stopHostLoop(){ if(hostTimer){ clearInterval(hostTimer); hostTimer=null; } }
+
+function hostTick(){
+  if(!W) return;
+  var now=Date.now();
+  var dt=TICK_MS/1000;
+
+  updatePhase(now);            // grow -> collapse -> win -> reset
+  updateOrbs(now);
+  // my (host) input
+  var me=W.blobs['HOST']; if(me&&me.alive){ me.hx=inputTarget.hx; me.hy=inputTarget.hy; }
+  // bots
+  for(var id in W.blobs){ var b=W.blobs[id]; if(b.isBot&&b.alive) botThink(b, now); }
+  // movement + decay + eating
+  moveBlobs(dt, now);
+  eatFood();
+  eatOrbs(now);
+  eatBlobs(now);
+  topUpFood();
+  if(W.phase!=='collapse') respawnDead(now); // no respawns once sudden-death begins
+  if(W.phase==='grow') fillBots(W);          // stop topping up bots in sudden-death
+  broadcastState(now);
+}
+
+// ----- tournament phase machine (host authoritative) -----
+function updatePhase(now){
+  if(W.phase==='grow'){
+    var toCollapse = W.collapseAt - now;
+    // grace countdown in the last 10s
+    if(!W.graceWarnShown && toCollapse<=GRACE_WARN_MS){
+      W.graceWarnShown=true;
+      emitEvent({ e:'gracewarn' });
+    }
+    if(now>=W.collapseAt){
+      W.phase='collapse';
+      W.collapseStart=now;
+      W.collapseBannerShown=true;
+      emitEvent({ e:'collapse' });
+    }
+  } else if(W.phase==='collapse'){
+    var prog = clamp((now - W.collapseStart)/COLLAPSE_MS, 0, 1);
+    // shrink the ring + ramp global speed
+    W.ringR = Math.max(RING_MIN, lerp(WORLD, RING_MIN, prog));
+    W.speedMult = lerp(1, SPEED_RAMP_MAX, prog);
+    // pull stray food back inside so it stays relevant
+    var aliveCount=0, lastAlive=null;
+    for(var id in W.blobs){ var b=W.blobs[id]; if(b.alive){ aliveCount++; lastAlive=b; } }
+    // WIN: one blob left, or ring fully closed
+    if(aliveCount<=1 || prog>=1){
+      var winner=lastAlive;
+      if(!winner){ // ring closed with multiple — biggest wins
+        var bm=-1; for(var id2 in W.blobs){ var bb=W.blobs[id2]; if(bb.m>bm){ bm=bb.m; winner=bb; } }
+      } else if(prog>=1){
+        // ring closed: biggest survivor wins
+        var bm2=-1; for(var id3 in W.blobs){ var bc=W.blobs[id3]; if(bc.alive && bc.m>bm2){ bm2=bc.m; winner=bc; } }
+      }
+      W.phase='win';
+      W.winnerId=winner?winner.id:null;
+      W.winAt=now+WIN_RESET_MS;
+      emitEvent({ e:'win', vid:W.winnerId, name:winner?winner.name:'Nobody' });
+    }
+  } else if(W.phase==='win'){
+    if(now>=W.winAt){ resetMatch(now); }
+  }
+}
+
+// fresh tournament match: reseed food, respawn everyone, back to GROW
+function resetMatch(now){
+  W.round += 1;
+  W.phase='grow';
+  W.ringR=WORLD;
+  W.speedMult=1;
+  W.winnerId=null; W.winAt=0;
+  W.collapseStart=0;
+  W.collapseAt=now+GROW_MS;
+  W.collapseBannerShown=false;
+  W.graceWarnShown=false;
+  W.nextOrbAt=now+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]);
+  W.orbs.length=0;
+  // reseed food
+  W.food.length=0;
+  for(var i=0;i<FOOD_COUNT;i++) W.food.push(spawnFood(W));
+  // respawn every player + bot, small
+  for(var id in W.blobs){
+    var b=W.blobs[id];
+    var p=safeSpawnPos(W);
+    b.x=p.x; b.y=p.y; b.m=START_MASS; b.alive=true;
+    b.hx=0; b.hy=0; b.power=null; b.powerUntil=0; b.respawnAt=0;
+    b.botTargetX=p.x; b.botTargetY=p.y; b.botRetargetAt=0;
+  }
+  fillBots(W);
+  emitEvent({ e:'newmatch', round:W.round });
+}
+
+function topUpFood(){
+  if(W.food.length<FOOD_COUNT){
+    var n=Math.min(FOOD_RESPAWN_PER_TICK, FOOD_COUNT-W.food.length);
+    for(var i=0;i<n;i++) W.food.push(spawnFood(W));
+  }
+}
+
+// endless mode: dead blobs respawn small instead of ending the match
+function respawnDead(now){
+  for(var id in W.blobs){
+    var b=W.blobs[id];
+    if(b.alive) continue;
+    if(b.respawnAt && now>=b.respawnAt){
+      var p=safeSpawnPos(W);
+      b.x=p.x; b.y=p.y; b.m=START_MASS; b.alive=true;
+      b.hx=0; b.hy=0; b.power=null; b.powerUntil=0; b.respawnAt=0;
+      b.botTargetX=p.x; b.botTargetY=p.y; b.botRetargetAt=0;
+      if(b.id===myId || (role==='host'&&b.id==='HOST')){ /* local revive handled in event */ }
+      emitEvent({ e:'respawn', vid:b.id, x:p.x, y:p.y, c:b.color });
+    }
+  }
+}
+
+function updateOrbs(now){
+  if(now>=W.nextOrbAt && W.orbs.length<3){
+    var kinds=['reverse','ghost','magnet'];
+    var k=kinds[(Math.random()*kinds.length)|0];
+    var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*(W.radius*0.7);
+    W.orbs.push({ id:'o'+now+(Math.random()*99|0), kind:k, x:Math.cos(a)*r, y:Math.sin(a)*r });
+    W.nextOrbAt=now+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]);
+  }
+}
+
+function moveBlobs(dt, now){
+  for(var id in W.blobs){
+    var b=W.blobs[id]; if(!b.alive) continue;
+    // expire powers
+    if(b.power && now>=b.powerUntil){ b.power=null; }
+    // faster overall pace; softened big-player slowdown so giants don't crawl.
+    // gentler radius term + higher floor keeps everyone active. Same curve for bots.
+    var speed = (340/(massRadius(b.m)*0.09+9));
+    speed = clamp(speed, 70, 330);
+    speed *= (W.speedMult||1);   // global ramp during collapse
+    var hmag=Math.sqrt(b.hx*b.hx+b.hy*b.hy);
+    if(hmag>0.02){
+      var ux=b.hx/Math.max(hmag,0.0001), uy=b.hy/Math.max(hmag,0.0001);
+      var thr=clamp(hmag,0,1);
+      b.x += ux*speed*thr*dt*3;
+      b.y += uy*speed*thr*dt*3;
+    }
+    // magnet pulls food
+    if(b.power==='magnet'){
+      var mr=massRadius(b.m)+170;
+      for(var fi=0;fi<W.food.length;fi++){
+        var f=W.food[fi];
+        var dd=dist2(b.x,b.y,f.x,f.y);
+        if(dd<mr*mr){ var d=Math.sqrt(dd)||1; var pull=Math.min(60,(mr-d))*dt*4;
+          f.x += (b.x-f.x)/d*pull; f.y += (b.y-f.y)/d*pull; }
+      }
+    }
+    // gentle mass decay for the very big (keeps games dynamic)
+    if(b.m>60) b.m -= b.m*0.0009;
+    // boundary handling
+    var ringR=(W.ringR||WORLD);
+    var d2=Math.sqrt(b.x*b.x+b.y*b.y);
+    if(W.phase==='collapse'){
+      // outside the shrinking safe zone: push inward + bleed mass; die if too small
+      if(d2>ringR){
+        // hard push so they can't outrun the closing ring forever
+        var pushK=Math.max(ringR/Math.max(d2,1), 0.985);
+        b.x*=pushK; b.y*=pushK;
+        b.m -= b.m*OUT_DAMAGE_PER_S*dt;
+        if(b.m<=START_MASS*0.5){ killBlob(b, null, now, 'collapse'); continue; }
+      }
+      // absolute outer wall = base arena so nobody escapes the canvas
+      var wallR=WORLD-8;
+      if(d2>wallR){ var kw=wallR/d2; b.x*=kw; b.y*=kw; }
+    } else {
+      // grow phase: solid full-size arena wall, no shrink
+      var hardR=WORLD-8;
+      if(d2>hardR){ var kk=hardR/d2; b.x*=kk; b.y*=kk; }
+    }
+  }
+}
+
+function eatFood(){
+  for(var id in W.blobs){
+    var b=W.blobs[id]; if(!b.alive) continue;
+    var r=massRadius(b.m);
+    for(var i=W.food.length-1;i>=0;i--){
+      var f=W.food[i];
+      if(dist2(b.x,b.y,f.x,f.y) < r*r){
+        b.m += f.m;
+        W.food.splice(i,1);
+        emitEvent({ e:'eatfood', x:f.x, y:f.y, c:f.c });
+      }
+    }
+  }
+}
+function eatOrbs(now){
+  for(var id in W.blobs){
+    var b=W.blobs[id]; if(!b.alive) continue;
+    var r=massRadius(b.m);
+    for(var i=W.orbs.length-1;i>=0;i--){
+      var o=W.orbs[i];
+      if(dist2(b.x,b.y,o.x,o.y) < (r+14)*(r+14)){
+        b.power=o.kind; b.powerUntil=now+POWER_DUR[o.kind];
+        W.orbs.splice(i,1);
+        emitEvent({ e:'orb', kind:o.kind, by:b.id, name:b.name, x:o.x, y:o.y });
+      }
+    }
+  }
+}
+function canEat(a,b){
+  // returns true if a eats b under current powers
+  var ra=massRadius(a.m), rb=massRadius(b.m);
+  var aRev=a.power==='reverse', bRev=b.power==='reverse';
+  // ghost: cannot be eaten and cannot eat
+  if(a.power==='ghost'||b.power==='ghost') return false;
+  var aBig = a.m > b.m*1.15;
+  var bBig = b.m > a.m*1.15;
+  if(aRev && !bRev){ return bBig || a.m<=b.m; } // reverse: small eats big
+  if(aRev && bRev){ return aBig; }
+  return aBig;
+}
+function eatBlobs(now){
+  var ids=Object.keys(W.blobs);
+  for(var i=0;i<ids.length;i++){
+    var a=W.blobs[ids[i]]; if(!a||!a.alive) continue;
+    for(var j=0;j<ids.length;j++){
+      if(i===j) continue;
+      var b=W.blobs[ids[j]]; if(!b||!b.alive) continue;
+      var ra=massRadius(a.m);
+      // overlap check (center of smaller inside bigger-ish)
+      var dd=dist2(a.x,a.y,b.x,b.y);
+      var overlap=(ra*0.62)*(ra*0.62);
+      if(dd<overlap){
+        if(canEat(a,b)){
+          a.m += b.m*0.92; // punchier reward for a kill
+          killBlob(b, a, now, 'eaten');
+        }
+      }
+    }
+  }
+}
+function killBlob(b, by, now, cause){
+  if(!b.alive) return;
+  b.alive=false;
+  b.power=null; b.powerUntil=0;
+  // endless: schedule a small respawn instead of ending the match
+  b.respawnAt = now + 1800;
+  emitEvent({ e:'kill', x:b.x, y:b.y, c:b.color, killer:(by?by.name:null), victim:b.name, vid:b.id });
+  // scatter some food where it died
+  var chunks=Math.min(14, 4+(b.m/12)|0);
+  for(var i=0;i<chunks;i++){
+    var a=Math.random()*Math.PI*2, rr=rand(8,massRadius(b.m));
+    W.food.push({ x:b.x+Math.cos(a)*rr, y:b.y+Math.sin(a)*rr, m:FOOD_MASS*1.4, c:b.color });
+  }
+}
+
+function broadcastState(now){
+  // build compact snapshot
+  var bl=[];
+  for(var id in W.blobs){
+    var b=W.blobs[id];
+    bl.push([id, Math.round(b.x), Math.round(b.y), Math.round(b.m*10)/10, b.color, b.name, b.alive?1:0, b.power||'', b.isBot?1:0]);
+  }
+  var fd=[]; for(var i=0;i<W.food.length;i++){ var f=W.food[i]; fd.push([Math.round(f.x),Math.round(f.y),f.c]); }
+  var or=[]; for(var k=0;k<W.orbs.length;k++){ var o=W.orbs[k]; or.push([Math.round(o.x),Math.round(o.y),o.kind]); }
+  // time remaining in current phase (ms) for client HUD/countdown
+  var tLeft;
+  if(W.phase==='grow') tLeft=Math.max(0, W.collapseAt-now);
+  else if(W.phase==='collapse') tLeft=Math.max(0, COLLAPSE_MS-(now-W.collapseStart));
+  else tLeft=Math.max(0, W.winAt-now);
+  var snap={ t:'state', ts:now, r:WORLD, ring:Math.round(W.ringR), phase:W.phase, round:W.round,
+    tLeft:tLeft, spd:Math.round((W.speedMult||1)*100)/100,
+    bl:bl, fd:fd, or:or };
+  // host renders directly too
+  applySnapshot(snap, true);
+  net.broadcast(snap);
+}
+
+// events: host emits locally + to clients
+function emitEvent(ev){
+  ev.t='event';
+  handleEvent(ev);
+  if(role==='host'&&net) net.broadcast(ev);
+}
+
+// ==================================================
+//  CLIENT side snapshot handling
+// ==================================================
+function startClientGame(msg){
+  players={};
+  msg.players.forEach(function(p){ players[p.id]={id:p.id,name:p.name,color:p.color,isBot:!!p.isBot}; });
+  enterGame();
+}
+function onClientSnapshot(snap){ applySnapshot(snap, false); }
+
+function applySnapshot(snap, isHost){
+  prevSnap=curSnap; snapTime=performance.now();
+  curSnap=snap;
+  if(!prevSnap) prevSnap=snap;
+}
+
+// ==================================================
+//  EVENTS (both roles): juice
+// ==================================================
+function handleEvent(ev){
+  if(ev.e==='eatfood'){
+    burst(ev.x, ev.y, ev.c, 5, 1.0);
+    sEat();
+  } else if(ev.e==='orb'){
+    sOrb();
+    burst(ev.x, ev.y, orbColor(ev.kind), 26, 2.2);
+    var meName=(players[myId]&&players[myId].name)||myName;
+    var mine = (ev.by===myId);
+    flash(orbColor(ev.kind));
+    showBanner(orbLabel(ev.kind), (mine?'You grabbed it!':(ev.name+' grabbed it')), orbColor(ev.kind));
+  } else if(ev.e==='kill'){
+    burst(ev.x, ev.y, ev.c, 30, 2.6);
+    shake=Math.min(shake+10, 26);
+    if(ev.vid===myId){ sDie(); showDead(ev.killer); }
+    else sKill();
+  } else if(ev.e==='respawn'){
+    if(ev.vid===myId){ hideDead(); showBanner('RESPAWN', 'Go eat!', '#36e07a'); }
+    burst(ev.x, ev.y, ev.c, 14, 1.6);
+  } else if(ev.e==='gracewarn'){
+    showBanner('SUDDEN DEATH SOON', 'The ring is about to close', '#ff7b3d');
+    beep(300,0.25,'square',0.07);
+  } else if(ev.e==='collapse'){
+    showBanner('THE COLLAPSE BEGINS', 'Stay inside the ring or die', '#ff2e93');
+    flash('#ff2e93');
+    shake=Math.min(shake+14, 28);
+    startMusic(); setMusicIntensity(0.05);
+    beep(160,0.5,'sawtooth',0.1);
+  } else if(ev.e==='win'){
+    setMusicIntensity(0); stopMusic();
+    sVictory();
+    showWin(ev.name, ev.vid);
+  } else if(ev.e==='newmatch'){
+    hideWin(); hideDead();
+    showBanner('MATCH '+(ev.round||''), 'Grow phase — eat & grow!', '#00e0ff');
+  }
+}
+function orbColor(k){ return k==='reverse'?'#ff2e93':(k==='ghost'?'#a0e0ff':'#ffd34d'); }
+function orbLabel(k){ return k==='reverse'?'REVERSE!':(k==='ghost'?'GHOST!':'MAGNET!'); }
+
+// ==================================================
+//  BOT AI
+// ==================================================
+function botThink(b, now){
+  // re-evaluate target periodically or when needed
+  if(now<b.botRetargetAt) {
+    // continue toward target; recompute heading each tick toward stored intent below
+  }
+  var threats=null, prey=null, food=null;
+  var bestThreatD=1e18, bestPreyD=1e18, bestFoodD=1e18;
+  var senseR=massRadius(b.m)*8+260;
+  for(var id in W.blobs){
+    if(id===b.id) continue;
+    var o=W.blobs[id]; if(!o.alive) continue;
+    var dd=dist2(b.x,b.y,o.x,o.y);
+    if(dd>senseR*senseR) continue;
+    if(canEat(o,b)){ if(dd<bestThreatD){ bestThreatD=dd; threats=o; } }       // o can eat me -> threat
+    else if(canEat(b,o)){ if(dd<bestPreyD){ bestPreyD=dd; prey=o; } }          // I can eat o -> prey
+  }
+  for(var fi=0;fi<W.food.length;fi++){
+    var f=W.food[fi]; var dd2=dist2(b.x,b.y,f.x,f.y);
+    if(dd2<bestFoodD){ bestFoodD=dd2; food=f; }
+  }
+  var tx=b.x, ty=b.y;
+  // ring safety: steer to center if near (or outside) the current safe ring
+  var dCenter=Math.sqrt(b.x*b.x+b.y*b.y);
+  var safeR=(W.ringR||W.radius);
+  var edgeFrac = (W.phase==='collapse')? 0.82 : 0.86;
+  if(dCenter > safeR*edgeFrac){
+    tx=b.x*0.1; ty=b.y*0.1;   // beeline for center
+  } else if(threats && bestThreatD < (massRadius(b.m)*5)*(massRadius(b.m)*5)){
+    // flee directly away
+    tx = b.x + (b.x-threats.x); ty = b.y + (b.y-threats.y);
+  } else if(prey){
+    tx=prey.x; ty=prey.y;
+  } else if(food){
+    tx=food.x; ty=food.y;
+  } else {
+    // wander
+    if(now>=b.botRetargetAt){ var a=Math.random()*Math.PI*2, r=rand(0,(W.ringR||W.radius)*0.6);
+      b.botTargetX=Math.cos(a)*r; b.botTargetY=Math.sin(a)*r; b.botRetargetAt=now+rand(1500,3000); }
+    tx=b.botTargetX; ty=b.botTargetY;
+  }
+  var dx=tx-b.x, dy=ty-b.y, mag=Math.sqrt(dx*dx+dy*dy)||1;
+  // add small jitter so bots feel alive
+  b.hx = dx/mag + rand(-0.08,0.08);
+  b.hy = dy/mag + rand(-0.08,0.08);
+}
+
+// ==================================================
+//  ENTER / EXIT GAME
+// ==================================================
+var lobbyEl=$('lobby'), gameEl=$('game');
+function enterGame(){
+  running=true;
+  lobbyEl.style.display='none';
+  gameEl.classList.add('on');
+  resizeCanvas();
+  Stats.start(GAME_ID);
+  try{ if(ac()&&ac().state==='suspended') ac().resume(); }catch(e){}
+  hideDead(); hideWin();
+  showBanner('GORGE', 'Eat & grow!', '#00e0ff');
+  if(!rafId) loop();
+}
+function exitToLobby(){
+  running=false;
+  stopHostLoop();
+  Stats.end();
+  if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+  try{ if(net) net.close(); }catch(e){}
+  location.reload();
+}
+$('exitBtn').addEventListener('click', exitToLobby);
+$('muteBtn').addEventListener('click', function(){ setMuted(!muted); });
+(function initMuted(){ try{ muted=localStorage.getItem('gorge_muted')==='1'; }catch(e){} })();
+window.addEventListener('beforeunload', function(){ Stats.end(); });
+
+// ==================================================
+//  CANVAS + RENDER
+// ==================================================
+var cv=$('cv'), ctx=cv.getContext('2d');
+var miniCv=$('minimap'), miniCtx=miniCv.getContext('2d');
+var VW=0, VH=0, DPR=1;
+function resizeCanvas(){
+  DPR=Math.min(window.devicePixelRatio||1, 2);
+  VW=window.innerWidth; VH=window.innerHeight;
+  cv.width=Math.floor(VW*DPR); cv.height=Math.floor(VH*DPR);
+  cv.style.width=VW+'px'; cv.style.height=VH+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', function(){ setTimeout(resizeCanvas,200); });
+
+// particles
+function burst(x,y,color,n,sz){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2, sp=rand(0.6,4)*(sz||1);
+    particles.push({ x:x,y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:1, c:color, r:rand(2,5)*(sz||1) });
+  }
+  if(particles.length>400) particles.splice(0, particles.length-400);
+}
+function flash(color){
+  var fl=$('flash'); fl.style.background='radial-gradient(circle at 50% 45%,'+color+'66,transparent 70%)';
+  fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+}
+
+// banner
+var bannerTO=null;
+function showBanner(big, small, color){
+  var bn=$('banner'); $('bannerBig').textContent=big; $('bannerBig').style.color=color||'#fff';
+  $('bannerSmall').textContent=small||'';
+  bn.classList.remove('show'); void bn.offsetWidth; bn.classList.add('show');
+}
+
+// dead / win overlays
+function showDead(killer){
+  var d=$('deadOver'); d.classList.add('on');
+  var collapse = curSnap && curSnap.phase==='collapse';
+  var tail = collapse ? 'Eliminated — watch who wins, then a fresh match begins.' : 'Respawning small…';
+  $('deadMsg').textContent = killer ? ('Eaten by '+killer+'. '+tail) : tail;
+}
+function hideDead(){ $('deadOver').classList.remove('on'); }
+function showWin(name, vid){
+  var w=$('winOver'); w.classList.add('on');
+  var iWon = (vid!=null && vid===myId);
+  $('winName').textContent = (iWon ? 'YOU WIN!' : (name||'Winner')+' wins');
+  $('winNext').textContent = 'Next match starting…';
+  if(iWon){ var cols=['#ffd34d','#ff5db1','#5de1ff','#9dff5d','#fff']; for(var i=0;i<5;i++){ (function(k){ setTimeout(function(){ burst(camera.x, camera.y, cols[k%cols.length], 50, 1.5); flash(cols[k%cols.length]); },k*180); })(i); } }
+}
+function hideWin(){ $('winOver').classList.remove('on'); }
+
+// find my blob in current snapshot
+function findBlob(snap, id){
+  if(!snap) return null;
+  for(var i=0;i<snap.bl.length;i++){ if(snap.bl[i][0]===id) return snap.bl[i]; }
+  return null;
+}
+
+// interpolate blob position between prev & cur snapshot
+function interpBlob(id, alpha){
+  var c=findBlob(curSnap,id); if(!c) return null;
+  var p=findBlob(prevSnap,id)||c;
+  return {
+    id:id,
+    x: lerp(p[1], c[1], alpha),
+    y: lerp(p[2], c[2], alpha),
+    m: c[3], color:c[4], name:c[5], alive:c[6]===1, power:c[7], isBot:c[8]===1
+  };
+}
+
+function loop(){
+  rafId=requestAnimationFrame(loop);
+  render();
+}
+
+function render(){
+  if(!curSnap){ ctx.clearRect(0,0,VW,VH); return; }
+  var now=performance.now();
+  var alpha = clamp((now-snapTime)/TICK_MS, 0, 1.4);
+
+  // resolve my blob (for camera). For host we can read W directly for crispness.
+  var meId=myId;
+  var me=interpBlob(meId, alpha);
+  var meMass = me? me.m : (camera._lastMass||START_MASS);
+  if(me){ camera._lastMass=me.m; }
+
+  // camera target: follow me, zoom by mass
+  var targetZoom = clamp(1.25 - (Math.sqrt(meMass)-Math.sqrt(START_MASS))*0.018, 0.5, 1.3);
+  camera.zoom = lerp(camera.zoom||1, targetZoom, 0.08);
+  if(me && me.alive){ camera.x=lerp(camera.x, me.x, 0.14); camera.y=lerp(camera.y, me.y, 0.14); }
+  else {
+    // spectate: drift to current leader
+    var lead=leaderBlob(alpha);
+    if(lead){ camera.x=lerp(camera.x, lead.x, 0.06); camera.y=lerp(camera.y, lead.y, 0.06); }
+  }
+
+  // shake
+  var sx=0, sy=0;
+  if(shake>0.2){ sx=rand(-shake,shake); sy=rand(-shake,shake); shake*=0.86; } else shake=0;
+
+  ctx.clearRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(VW/2+sx, VH/2+sy);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-camera.x, -camera.y);
+
+  drawBackground();
+  drawSafeRing(now);
+  drawFood();
+  drawOrbs(now);
+  drawBlobs(alpha, now);
+  drawParticles();
+
+  ctx.restore();
+
+  updateHUD(me, meMass);
+  drawMinimap();
+  syncMusic();
+}
+
+// keep tension music intensity tracking the live collapse progress
+var lastPhaseSeen=null;
+function syncMusic(){
+  if(!curSnap) return;
+  var ph=curSnap.phase;
+  if(ph==='collapse'){
+    if(!music.on){ startMusic(); }
+    var prog = 1 - clamp(curSnap.tLeft/COLLAPSE_MS, 0, 1);
+    setMusicIntensity(0.05 + prog*0.95);
+  } else if(ph!=='collapse' && music.on && lastPhaseSeen==='collapse'){
+    // left collapse (win/new match): fade music out
+    stopMusic();
+  }
+  lastPhaseSeen=ph;
+}
+
+// ---- minimap: whole fixed arena + a blip for every player (food faint) ----
+function drawMinimap(){
+  if(!curSnap) return;
+  var w=miniCv.width, h=miniCv.height;
+  var pad=6, size=Math.min(w,h)-pad*2;
+  var cx=w/2, cy=h/2, R=size/2;
+  var scale=R/WORLD; // world units -> minimap px
+  miniCtx.clearRect(0,0,w,h);
+  // arena disc
+  miniCtx.beginPath(); miniCtx.arc(cx,cy,R,0,Math.PI*2);
+  miniCtx.fillStyle='rgba(16,18,42,0.85)'; miniCtx.fill();
+  miniCtx.lineWidth=1.5; miniCtx.strokeStyle='rgba(120,140,255,0.35)'; miniCtx.stroke();
+  // shrinking safe-zone ring
+  var ring=(curSnap.ring!=null? curSnap.ring : WORLD);
+  if(curSnap.phase!=='grow' && ring<WORLD-1){
+    var rr=clamp(ring*scale, 2, R);
+    // danger ring fill outside the safe zone
+    miniCtx.save();
+    miniCtx.beginPath(); miniCtx.arc(cx,cy,R,0,Math.PI*2);
+    miniCtx.arc(cx,cy,rr,0,Math.PI*2,true);
+    miniCtx.fillStyle='rgba(255,46,147,0.22)'; miniCtx.fill('evenodd');
+    miniCtx.restore();
+    miniCtx.beginPath(); miniCtx.arc(cx,cy,rr,0,Math.PI*2);
+    miniCtx.lineWidth=1.5; miniCtx.strokeStyle='rgba(255,46,147,0.95)'; miniCtx.stroke();
+  }
+  // food as faint specks
+  var fd=curSnap.fd;
+  miniCtx.fillStyle='rgba(160,180,255,0.28)';
+  for(var i=0;i<fd.length;i+=3){ // every 3rd for lightness
+    var fx=cx+fd[i][0]*scale, fy=cy+fd[i][1]*scale;
+    miniCtx.fillRect(fx,fy,1,1);
+  }
+  // players: blip per blob, sized by mass, my blob ringed white
+  var bl=curSnap.bl;
+  for(var j=0;j<bl.length;j++){
+    var b=bl[j]; if(b[6]!==1) continue; // alive only
+    var mx=cx+b[1]*scale, my=cy+b[2]*scale;
+    var br=clamp(massRadius(b[3])*scale, 1.5, R*0.5);
+    miniCtx.beginPath(); miniCtx.arc(mx,my,br,0,Math.PI*2);
+    miniCtx.fillStyle=b[4]; miniCtx.globalAlpha=0.95; miniCtx.fill(); miniCtx.globalAlpha=1;
+    if(b[0]===myId){
+      miniCtx.beginPath(); miniCtx.arc(mx,my,br+2.5,0,Math.PI*2);
+      miniCtx.lineWidth=1.8; miniCtx.strokeStyle='#fff'; miniCtx.stroke();
+    }
+  }
+}
+
+function leaderBlob(alpha){
+  if(!curSnap) return null;
+  var best=null, bm=-1;
+  for(var i=0;i<curSnap.bl.length;i++){ var b=curSnap.bl[i]; if(b[6]===1 && b[3]>bm){ bm=b[3]; best=b; } }
+  if(!best) return null;
+  return interpBlob(best[0], alpha);
+}
+
+function drawBackground(){
+  var R=WORLD;
+  // arena dark disc
+  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2);
+  var g=ctx.createRadialGradient(0,0,R*0.1,0,0,R);
+  g.addColorStop(0,'#10122a'); g.addColorStop(1,'#070812');
+  ctx.fillStyle=g; ctx.fill();
+  // grid
+  ctx.save();
+  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.clip();
+  ctx.strokeStyle='rgba(120,140,255,0.06)'; ctx.lineWidth=1;
+  var step=130;
+  var x0=camera.x-VW/camera.zoom, x1=camera.x+VW/camera.zoom;
+  var y0=camera.y-VH/camera.zoom, y1=camera.y+VH/camera.zoom;
+  var sx=Math.floor(x0/step)*step;
+  for(var x=sx;x<x1;x+=step){ ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke(); }
+  var sy=Math.floor(y0/step)*step;
+  for(var y=sy;y<y1;y+=step){ ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); }
+  ctx.restore();
+  // arena edge glow
+  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2);
+  ctx.strokeStyle='rgba(120,140,255,0.18)'; ctx.lineWidth=4; ctx.stroke();
+}
+
+// shrinking safe-zone ring (only meaningful during collapse)
+function drawSafeRing(now){
+  if(!curSnap) return;
+  var ring=(curSnap.ring!=null? curSnap.ring : WORLD);
+  if(curSnap.phase==='grow' || ring>=WORLD-1) return; // full arena -> nothing to draw
+  // tint the danger zone (outside the ring) red, clipped to the arena disc
+  ctx.save();
+  ctx.beginPath(); ctx.arc(0,0,WORLD,0,Math.PI*2);   // arena disc
+  ctx.arc(0,0,ring,0,Math.PI*2, true);               // minus safe ring (even-odd ring)
+  ctx.fillStyle='rgba(255,46,147,0.16)'; ctx.fill('evenodd');
+  ctx.restore();
+  // pulsing ring boundary
+  var pulse=0.5+0.5*Math.sin(now/140);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(0,0,ring,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,46,147,'+(0.55+pulse*0.4)+')';
+  ctx.lineWidth=6; ctx.shadowColor='#ff2e93'; ctx.shadowBlur=24+pulse*16;
+  ctx.setLineDash([18,12]); ctx.lineDashOffset=-now/30;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFood(){
+  var f=curSnap.fd;
+  for(var i=0;i<f.length;i++){
+    var fx=f[i][0], fy=f[i][1];
+    // cull off-screen
+    if(Math.abs(fx-camera.x)>VW/camera.zoom || Math.abs(fy-camera.y)>VH/camera.zoom) continue;
+    ctx.beginPath(); ctx.arc(fx,fy,5,0,Math.PI*2);
+    ctx.fillStyle=f[i][2]; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+  }
+}
+
+function drawOrbs(now){
+  var o=curSnap.or;
+  for(var i=0;i<o.length;i++){
+    var ox=o[i][0], oy=o[i][1], kind=o[i][2];
+    var col=orbColor(kind);
+    var pulse=0.6+0.4*Math.sin(now/200+i);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(ox,oy,16+pulse*6,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.globalAlpha=0.18; ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.beginPath(); ctx.arc(ox,oy,12,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=22; ctx.fill();
+    ctx.shadowBlur=0;
+    // icon glyph
+    ctx.fillStyle='#06060f'; ctx.font='900 14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(kind==='reverse'?'⇄':(kind==='ghost'?'◌':'⊙'), ox, oy+1);
+    ctx.restore();
+  }
+}
+
+function drawBlobs(alpha, now){
+  // gather and sort by mass so big draw on top? draw small under big for overlap visuals
+  var list=[];
+  for(var i=0;i<curSnap.bl.length;i++){
+    var raw=curSnap.bl[i];
+    if(raw[6]!==1) continue;
+    var b=interpBlob(raw[0], alpha); if(b) list.push(b);
+  }
+  list.sort(function(a,b){ return a.m-b.m; });
+  for(var k=0;k<list.length;k++){ drawBlob(list[k], now); }
+}
+
+function drawBlob(b, now){
+  var r=massRadius(b.m);
+  // cull
+  if(Math.abs(b.x-camera.x)-r>VW/camera.zoom || Math.abs(b.y-camera.y)-r>VH/camera.zoom) return;
+  var ghost = b.power==='ghost';
+  ctx.save();
+  ctx.globalAlpha = ghost?0.45:1;
+  // outer glow
+  ctx.beginPath(); ctx.arc(b.x,b.y,r,0,Math.PI*2);
+  var g=ctx.createRadialGradient(b.x-r*0.3,b.y-r*0.3,r*0.1,b.x,b.y,r);
+  g.addColorStop(0, lighten(b.color));
+  g.addColorStop(1, b.color);
+  ctx.fillStyle=g;
+  ctx.shadowColor=b.color; ctx.shadowBlur= b.id===myId?26:14;
+  ctx.fill();
+  ctx.shadowBlur=0;
+  // rim
+  ctx.beginPath(); ctx.arc(b.x,b.y,r,0,Math.PI*2);
+  ctx.lineWidth=Math.max(2, r*0.08);
+  ctx.strokeStyle = b.power==='reverse' ? '#fff' : 'rgba(255,255,255,0.35)';
+  if(b.power==='reverse'){ ctx.setLineDash([6,5]); ctx.lineDashOffset=-now/40; }
+  ctx.stroke(); ctx.setLineDash([]);
+  // magnet aura
+  if(b.power==='magnet'){
+    ctx.beginPath(); ctx.arc(b.x,b.y,r+ (10+6*Math.sin(now/120)),0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,211,77,0.5)'; ctx.lineWidth=2; ctx.stroke();
+  }
+  // eyes (cute)
+  var ex=r*0.32, ey=-r*0.1, eR=Math.max(2.4, r*0.16);
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(b.x-ex,b.y+ey,eR,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(b.x+ex,b.y+ey,eR,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#0a0a14';
+  ctx.beginPath(); ctx.arc(b.x-ex,b.y+ey,eR*0.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(b.x+ex,b.y+ey,eR*0.5,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // name tag
+  ctx.save();
+  ctx.globalAlpha=ghost?0.6:1;
+  ctx.font='800 '+clamp(r*0.42,11,22)+'px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,0.55)';
+  var nm=b.name||'?'; if(b.id===myId) nm='★'+nm;
+  ctx.strokeText(nm, b.x, b.y);
+  ctx.fillStyle='#fff'; ctx.fillText(nm, b.x, b.y);
+  ctx.restore();
+}
+
+function lighten(hex){
+  try{
+    var c=hex.replace('#',''); var n=parseInt(c,16);
+    var r=Math.min(255,((n>>16)&255)+70), g=Math.min(255,((n>>8)&255)+70), b=Math.min(255,(n&255)+70);
+    return 'rgb('+r+','+g+','+b+')';
+  }catch(e){ return hex; }
+}
+
+function drawParticles(){
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vx*=0.94; p.vy*=0.94; p.life-=0.03;
+    if(p.life<=0){ particles.splice(i,1); continue; }
+    ctx.globalAlpha=clamp(p.life,0,1);
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);
+    ctx.fillStyle=p.c; ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+// ==================================================
+//  HUD
+// ==================================================
+var lastChips='';
+function updateHUD(me, meMass){
+  $('hudMass').textContent = Math.round(meMass);
+  // rank
+  var live=[]; for(var i=0;i<curSnap.bl.length;i++){ if(curSnap.bl[i][6]===1) live.push(curSnap.bl[i]); }
+  live.sort(function(a,b){ return b[3]-a[3]; });
+  var myRank=0; for(var r=0;r<live.length;r++){ if(live[r][0]===myId){ myRank=r+1; break; } }
+  $('hudRank').textContent = (myRank? myRank: '–')+'/'+live.length;
+  // phase-aware timer: grow=countdown to collapse, collapse=ring closing countdown
+  var ph=curSnap.phase, tl=Math.ceil((curSnap.tLeft||0)/1000);
+  var lblEl=$('hudTimerLbl'), valEl=$('hudTimer');
+  if(ph==='grow'){ lblEl.textContent='Collapse in'; valEl.textContent=tl+'s';
+    valEl.style.color = tl<=10 ? '#ff7b3d' : ''; }
+  else if(ph==='collapse'){ lblEl.textContent='Ring closing'; valEl.textContent=tl+'s';
+    valEl.style.color='#ff2e93'; }
+  else { lblEl.textContent='Winner'; valEl.textContent='🏆'; valEl.style.color='#ffd34d'; }
+  // leaderboard
+  var rows=''; var top=live.slice(0,6);
+  for(var t=0;t<top.length;t++){
+    var b=top[t];
+    var meCls=b[0]===myId?' me':'';
+    rows+='<div class="row'+meCls+'"><span class="sw" style="color:'+b[4]+';background:'+b[4]+'"></span>'
+      +'<span class="nm">'+escapeHtml(b[5])+'</span><span class="ms">'+Math.round(b[3])+'</span></div>';
+  }
+  $('boardRows').innerHTML=rows;
+  // power chips
+  var chips='';
+  if(me && me.alive && me.power){
+    chips='<div class="pchip" style="color:'+orbColor(me.power)+'">'+orbLabel(me.power)+'</div>';
+  }
+  if(chips!==lastChips){ $('powerChips').innerHTML=chips; lastChips=chips; }
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+// ==================================================
+//  INPUT (drag-to-steer + floating joystick visual)
+// ==================================================
+var stick=$('stick'), stickNub=$('stickNub');
+function setInputFromVec(dx,dy){
+  var mag=Math.sqrt(dx*dx+dy*dy);
+  var maxR=58;
+  var t=clamp(mag/maxR,0,1);
+  if(mag>0){ inputTarget.hx=(dx/mag)*t; inputTarget.hy=(dy/mag)*t; }
+  else { inputTarget.hx=0; inputTarget.hy=0; }
+  // send to host if client
+  if(role==='client' && net){ net.send({ t:'input', hx:Math.round(inputTarget.hx*100)/100, hy:Math.round(inputTarget.hy*100)/100 }); }
+}
+function startPointer(x,y){
+  pointer.active=true; pointer.sx=x; pointer.sy=y; pointer.cx=x; pointer.cy=y;
+  stick.style.display='block'; stick.style.left=(x-59)+'px'; stick.style.top=(y-59)+'px';
+  stickNub.style.left='50%'; stickNub.style.top='50%';
+  try{ if(ac()&&ac().state==='suspended') ac().resume(); }catch(e){}
+}
+function movePointer(x,y){
+  if(!pointer.active) return;
+  pointer.cx=x; pointer.cy=y;
+  var dx=x-pointer.sx, dy=y-pointer.sy;
+  var mag=Math.sqrt(dx*dx+dy*dy), maxR=58;
+  if(mag>maxR){ dx=dx/mag*maxR; dy=dy/mag*maxR; }
+  stickNub.style.left=(59+dx)+'px'; stickNub.style.top=(59+dy)+'px';
+  setInputFromVec(dx,dy);
+}
+function endPointer(){
+  pointer.active=false; stick.style.display='none';
+  inputTarget.hx=0; inputTarget.hy=0;
+  if(role==='client'&&net) net.send({ t:'input', hx:0, hy:0 });
+}
+cv.addEventListener('touchstart', function(e){ e.preventDefault(); var t=e.changedTouches[0]; startPointer(t.clientX,t.clientY); }, {passive:false});
+cv.addEventListener('touchmove', function(e){ e.preventDefault(); var t=e.changedTouches[0]; movePointer(t.clientX,t.clientY); }, {passive:false});
+cv.addEventListener('touchend', function(e){ e.preventDefault(); endPointer(); }, {passive:false});
+cv.addEventListener('touchcancel', function(e){ endPointer(); }, {passive:false});
+cv.addEventListener('mousedown', function(e){ startPointer(e.clientX,e.clientY); });
+window.addEventListener('mousemove', function(e){ movePointer(e.clientX,e.clientY); });
+window.addEventListener('mouseup', function(){ if(pointer.active) endPointer(); });
+// keyboard for desktop testing
+var keys={};
+window.addEventListener('keydown', function(e){ keys[e.key.toLowerCase()]=true; applyKeys(); });
+window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()]=false; applyKeys(); });
+function applyKeys(){
+  if(!running) return;
+  var dx=0,dy=0;
+  if(keys['arrowleft']||keys['a']) dx-=1; if(keys['arrowright']||keys['d']) dx+=1;
+  if(keys['arrowup']||keys['w']) dy-=1; if(keys['arrowdown']||keys['s']) dy+=1;
+  if(dx||dy){ setInputFromVec(dx*58,dy*58); } else if(!pointer.active){ inputTarget.hx=0; inputTarget.hy=0; if(role==='client'&&net) net.send({t:'input',hx:0,hy:0}); }
+}
+
+})();
+</script>
+</body>
+</html>

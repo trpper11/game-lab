@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>GAME LAB — Quick multiplayer games for your group</title>
+<meta name="theme-color" content="#07080f">
+<link rel="stylesheet" href="./common.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="./stats.js"></script>
+<style>
+  html, body { overflow-y: auto; }
+  .hub {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100%;
+    padding: calc(26px + var(--safe-t)) 20px calc(30px + var(--safe-b));
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ---------- header ---------- */
+  .hero { text-align: center; position: relative; padding-top: 6px; }
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,224,255,.28);
+    background: rgba(0,224,255,.06);
+    margin-bottom: 14px;
+    box-shadow: 0 0 24px rgba(0,224,255,.15) inset;
+  }
+  .brand {
+    font-size: clamp(46px, 16vw, 78px);
+    font-weight: 900;
+    line-height: .92;
+    letter-spacing: 1px;
+    background: linear-gradient(110deg, var(--accent) 0%, var(--accent3) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 6px 30px rgba(120,80,255,.55));
+    animation: brandGlow 5s ease-in-out infinite;
+  }
+  @keyframes brandGlow {
+    0%,100% { filter: drop-shadow(0 6px 26px rgba(0,224,255,.40)); }
+    50%     { filter: drop-shadow(0 6px 34px rgba(255,46,147,.50)); }
+  }
+  .tagline {
+    color: var(--muted);
+    font-size: 15.5px;
+    line-height: 1.45;
+    margin: 12px auto 0;
+    max-width: 360px;
+  }
+  .tagline b { color: var(--text); font-weight: 700; }
+
+  /* ---------- section heading ---------- */
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 4px 2px -4px;
+  }
+  .sec-head h2 {
+    font-size: 14px; font-weight: 800; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text);
+  }
+  .sec-head span { font-size: 12px; color: var(--muted); }
+
+  /* ---------- cards ---------- */
+  .cards { display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    position: relative;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 22px;
+    padding: 2px; /* gradient border */
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    box-shadow: 0 14px 40px rgba(0,0,0,.5), 0 0 30px var(--glow);
+    transition: transform .18s cubic-bezier(.2,.8,.3,1.2), box-shadow .25s ease;
+    animation: floaty 6s ease-in-out infinite;
+    will-change: transform;
+  }
+  .card:nth-child(2){ animation-delay: -2s; }
+  .card:nth-child(3){ animation-delay: -4s; }
+  @keyframes floaty { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-5px); } }
+  .card:active { transform: scale(.975); box-shadow: 0 8px 22px rgba(0,0,0,.55), 0 0 38px var(--glow); }
+  .card-inner {
+    position: relative;
+    border-radius: 20px;
+    padding: 18px 18px 16px;
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.06), transparent 55%),
+      linear-gradient(160deg, #11132b, #0a0b1a);
+    overflow: hidden;
+  }
+  .card-inner::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(80% 60% at 0% 100%, var(--glow), transparent 60%);
+    opacity: .5; pointer-events: none;
+  }
+  .card-top { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+  .emoji {
+    font-size: 40px; line-height: 1;
+    width: 64px; height: 64px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    box-shadow: 0 6px 18px rgba(0,0,0,.4), 0 0 22px var(--glow);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+  }
+  .card-name { font-size: 24px; font-weight: 900; letter-spacing: .5px; }
+  .card-meta {
+    font-size: 12px; font-weight: 700; letter-spacing: .4px;
+    color: var(--muted); margin-top: 3px;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .card-meta .live {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--good);
+  }
+  .card-meta .live .pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--good); box-shadow: 0 0 8px var(--good);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{ transform: scale(1); opacity:1; } 50%{ transform: scale(1.5); opacity:.5; } }
+  .hook {
+    position: relative; z-index: 1;
+    margin-top: 13px;
+    font-size: 14.5px; line-height: 1.42; color: #c8cdf0;
+  }
+  .play-cue {
+    position: absolute; top: 18px; right: 18px;
+    font-size: 13px; font-weight: 800; letter-spacing: .5px;
+    color: var(--text); opacity: .55; z-index: 1;
+  }
+
+  /* ---------- trending ---------- */
+  .trend-card { display: flex; flex-direction: column; gap: 13px; }
+  .trend-row { display: flex; flex-direction: column; gap: 7px; }
+  .trend-line {
+    display: flex; align-items: center; gap: 10px; font-size: 14px;
+  }
+  .trend-line .t-emoji { font-size: 20px; width: 26px; text-align: center; flex: 0 0 auto; }
+  .trend-line .t-name { font-weight: 800; }
+  .trend-line .t-fire {
+    font-size: 11px; font-weight: 800; letter-spacing: .5px;
+    color: #ff8a3d; background: rgba(255,138,61,.12);
+    border: 1px solid rgba(255,138,61,.3);
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .trend-line .t-stats { margin-left: auto; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+  .bar-track {
+    height: 10px; border-radius: 999px;
+    background: rgba(255,255,255,.05);
+    overflow: hidden; border: 1px solid rgba(255,255,255,.05);
+  }
+  .bar-fill {
+    height: 100%; border-radius: 999px; width: 0%;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+    box-shadow: 0 0 14px var(--glow);
+    transition: width 1s cubic-bezier(.2,.8,.3,1);
+  }
+  .trend-empty {
+    text-align: center; color: var(--muted);
+    font-size: 14px; line-height: 1.5; padding: 14px 6px;
+  }
+  .trend-empty .big { font-size: 30px; display: block; margin-bottom: 8px; }
+  .trend-note {
+    font-size: 11.5px; color: var(--muted); text-align: center;
+    margin-top: 2px; opacity: .8;
+  }
+
+  /* ---------- footer ---------- */
+  .footer {
+    margin-top: 6px; text-align: center;
+    color: var(--muted); font-size: 11.5px; line-height: 1.6;
+  }
+  .footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .footer .money { opacity: .8; }
+</style>
+</head>
+<body>
+<div class="hub">
+
+  <header class="hero">
+    <div class="badge">⚡ Play live · No install</div>
+    <div class="brand">GAME&nbsp;LAB</div>
+    <p class="tagline">Quick <b>multiplayer</b> games for your group.<br>Pick one, share the link, <b>play live</b>.</p>
+  </header>
+
+  <div class="sec-head">
+    <h2>🎮 Pick a game</h2>
+    <span>2–10 players</span>
+  </div>
+
+  <div class="cards">
+
+    <a class="card" href="./1/" style="--c1:#15d36b;--c2:#0a9d6e;--glow:rgba(21,211,107,.35)">
+      <div class="card-inner">
+        <div class="play-cue">PLAY ›</div>
+        <div class="card-top">
+          <div class="emoji">🟢</div>
+          <div>
+            <div class="card-name">GORGE</div>
+            <div class="card-meta">2–10 players · <span class="live"><span class="pulse"></span>live</span></div>
+          </div>
+        </div>
+        <div class="hook">A bottomless pit. Everyone's hungry. Eat the small, dodge the big, survive the closing ring.</div>
+      </div>
+    </a>
+
+    <a class="card" href="./2/" style="--c1:#ff2e93;--c2:#b14bff;--glow:rgba(177,75,255,.38)">
+      <div class="card-inner">
+        <div class="play-cue">PLAY ›</div>
+        <div class="card-top">
+          <div class="emoji">🎨</div>
+          <div>
+            <div class="card-name">INKLASH</div>
+            <div class="card-meta">2–10 players · <span class="live"><span class="pulse"></span>live</span></div>
+          </div>
+        </div>
+        <div class="hook">90 seconds. Paint the floor your colour. Most turf wins — but step in wet enemy paint and you POP.</div>
+      </div>
+    </a>
+
+    <a class="card" href="./3/" style="--c1:#ffb01f;--c2:#ff5e3a;--glow:rgba(255,138,30,.35)">
+      <div class="card-inner">
+        <div class="play-cue">PLAY ›</div>
+        <div class="card-top">
+          <div class="emoji">🤪</div>
+          <div>
+            <div class="card-name">MICRO MAYHEM</div>
+            <div class="card-meta">2–10 players · <span class="live"><span class="pulse"></span>live</span></div>
+          </div>
+        </div>
+        <div class="hook">Same micro-game, all of you, at once. Read fast, react faster. Last one not panicking wins.</div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="sec-head">
+    <h2>📊 Trending board</h2>
+    <span>by play-time</span>
+  </div>
+
+  <div class="glab-panel trend-card" id="trend">
+    <div class="trend-empty">
+      <span class="big">⏳</span>
+      Loading the leaderboard…
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="money">💎 Free to play. Money one day from cosmetics &amp; skins + an optional season pass — gameplay always free.</div>
+    <div style="margin-top:8px"><a href="./ideas.html">💡 50 ideas</a></div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Telegram integration (graceful in a normal browser) -------------
+  try {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+      tg.ready();
+      if (typeof tg.expand === 'function') tg.expand();
+      var tp = tg.themeParams || {};
+      var root = document.documentElement.style;
+      if (tp.bg_color) {
+        root.setProperty('--bg', tp.bg_color);
+        root.setProperty('--bg2', tp.secondary_bg_color || tp.bg_color);
+        document.body.style.background = tp.bg_color;
+      }
+      if (tp.text_color) root.setProperty('--text', tp.text_color);
+      if (tp.hint_color) root.setProperty('--muted', tp.hint_color);
+      if (tp.button_color) root.setProperty('--accent', tp.button_color);
+      if (tp.link_color) root.setProperty('--accent3', tp.link_color);
+      try { tg.setHeaderColor && tg.setHeaderColor(tp.bg_color || '#07080f'); } catch (e) {}
+    }
+  } catch (e) {}
+
+  // ---- Trending board (ranked by total play-time) ----------------------
+  var META = {
+    gorge:   { name: 'GORGE',        emoji: '🟢', href: './1/', c1: '#15d36b', c2: '#0a9d6e', glow: 'rgba(21,211,107,.35)' },
+    inklash: { name: 'INKLASH',      emoji: '🎨', href: './2/', c1: '#ff2e93', c2: '#b14bff', glow: 'rgba(177,75,255,.38)' },
+    mayhem:  { name: 'MICRO MAYHEM', emoji: '🤪', href: './3/', c1: '#ffb01f', c2: '#ff5e3a', glow: 'rgba(255,138,30,.35)' }
+  };
+  var ORDER = ['gorge', 'inklash', 'mayhem'];
+
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  function renderTrend(data) {
+    var el = document.getElementById('trend');
+    var rows = ORDER.map(function (id) {
+      var d = data[id] || { seconds: 0, opens: 0 };
+      return { id: id, seconds: Math.max(0, d.seconds || 0), opens: Math.max(0, d.opens || 0) };
+    });
+    var total = rows.reduce(function (a, r) { return a + r.seconds; }, 0);
+
+    if (total <= 0) {
+      el.innerHTML =
+        '<div class="trend-empty">' +
+          '<span class="big">🚀</span>' +
+          'Be the first to play — your time shows up here.' +
+        '</div>' +
+        '<div class="trend-note">This board ranks games by total play-time across players.</div>';
+      return;
+    }
+
+    var sorted = rows.slice().sort(function (a, b) { return b.seconds - a.seconds; });
+    var max = sorted[0].seconds || 1;
+    var leader = sorted[0].id;
+
+    var html = '<div class="trend-row">';
+    sorted.forEach(function (r) {
+      var m = META[r.id];
+      var pct = Math.round((r.seconds / max) * 100);
+      var fire = (r.id === leader && r.seconds > 0)
+        ? '<a href="' + m.href + '" style="text-decoration:none" class="t-fire">🔥 Trending now</a>' : '';
+      html +=
+        '<div style="margin-bottom:11px">' +
+          '<a href="' + m.href + '" style="text-decoration:none;color:inherit">' +
+            '<div class="trend-line">' +
+              '<span class="t-emoji">' + m.emoji + '</span>' +
+              '<span class="t-name">' + esc(m.name) + '</span>' +
+              fire +
+              '<span class="t-stats">' + Stats.fmt(r.seconds) + ' · ' + r.opens + (r.opens === 1 ? ' open' : ' opens') + '</span>' +
+            '</div>' +
+          '</a>' +
+          '<div class="bar-track" style="margin-top:7px"><div class="bar-fill" style="--c1:' + m.c1 + ';--c2:' + m.c2 + ';--glow:' + m.glow + '"></div></div>' +
+        '</div>';
+    });
+    html += '</div><div class="trend-note">Ranked by total play-time across everyone who plays.</div>';
+    el.innerHTML = html;
+
+    // animate bars in
+    requestAnimationFrame(function () {
+      var fills = el.querySelectorAll('.bar-fill');
+      sorted.forEach(function (r, i) {
+        var pct = Math.round((r.seconds / max) * 100);
+        if (fills[i]) fills[i].style.width = Math.max(pct, r.seconds > 0 ? 8 : 0) + '%';
+      });
+    });
+  }
+
+  try {
+    Stats.global().then(renderTrend).catch(function () { renderTrend(Stats.totals()); });
+  } catch (e) {
+    try { renderTrend(Stats.totals()); } catch (e2) {}
+  }
+})();
+</script>
+</body>
+</html>

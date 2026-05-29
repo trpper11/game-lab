@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>💸 JACKPOT JEFF — Claim Your FREE 10,000 TON!</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#0b0b14; --panel:#15152200; --gold:#ffd23f; --gold2:#ff9f1c;
+    --green:#21d07a; --red:#ff4d5e; --pink:#ff4d8d; --cyan:#3ee6e0;
+    --txt:#fff; --dim:#9aa0b4; --line:#2a2a3c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(255,159,28,.25), transparent 55%),
+      radial-gradient(ellipse at 50% 120%, rgba(255,77,141,.18), transparent 55%),
+      var(--bg);
+    color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    overflow:hidden;position:fixed;width:100%;
+  }
+  #app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;position:relative}
+
+  /* ---- fake header ---- */
+  .topbar{display:flex;align-items:center;gap:9px;padding:11px 14px;background:#17212b;border-bottom:1px solid #0e1620}
+  .topbar .ava{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .topbar .nm{font-size:14px;font-weight:700;line-height:1.1}
+  .topbar .st{font-size:11px;color:#64b5ef}
+  .topbar .gear{margin-left:auto;font-size:19px;opacity:.8;cursor:pointer;padding:4px}
+
+  /* ---- balance ---- */
+  .balance-wrap{text-align:center;padding:14px 14px 6px}
+  .bal-label{font-size:11px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .bal{font-size:46px;font-weight:900;line-height:1;background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 28px rgba(255,210,63,.35);transition:transform .12s}
+  .bal.pop{transform:scale(1.18)}
+  .bal-unit{font-size:16px;color:var(--gold);font-weight:800;margin-left:4px}
+  .bal-fiat{font-size:12px;color:var(--green);margin-top:3px}
+
+  /* ---- rage + progress meters ---- */
+  .meters{padding:6px 16px 2px;display:flex;flex-direction:column;gap:7px}
+  .meter{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
+  .bar{height:9px;border-radius:6px;background:#20202e;overflow:hidden;margin-top:3px;border:1px solid var(--line)}
+  .bar > i{display:block;height:100%;width:0;border-radius:6px;transition:width .35s ease}
+  #progFill{background:linear-gradient(90deg,var(--gold2),var(--gold))}
+  #rageFill{background:linear-gradient(90deg,#ff7b00,var(--red))}
+
+  /* ---- Jeff stage ---- */
+  .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;min-height:0}
+  .bubble{max-width:300px;background:#fff;color:#16161f;padding:10px 14px;border-radius:16px;font-size:14px;font-weight:600;text-align:center;position:relative;margin-bottom:8px;box-shadow:0 6px 22px rgba(0,0,0,.4);animation:bpop .25s}
+  .bubble:after{content:"";position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border:8px solid transparent;border-top-color:#fff;border-bottom:0}
+  @keyframes bpop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+  #jeff{width:150px;height:150px;cursor:pointer;animation:bob 2.2s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-9px) rotate(1deg)}}
+  #jeff.shake{animation:jshake .4s}
+  @keyframes jshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px) rotate(-6deg)}60%{transform:translateX(9px) rotate(6deg)}}
+
+  /* ---- buttons ---- */
+  .controls{padding:10px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+  .btn{border:0;border-radius:16px;font-weight:900;font-size:19px;padding:18px;color:#1a1300;cursor:pointer;position:relative;letter-spacing:.5px;box-shadow:0 6px 0 #b8741a,0 10px 22px rgba(255,159,28,.4);transition:transform .07s,box-shadow .07s}
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #b8741a,0 4px 10px rgba(255,159,28,.4)}
+  #claimBtn{background:linear-gradient(180deg,var(--gold),var(--gold2));position:relative}
+  #claimBtn .sub{display:block;font-size:11px;font-weight:700;opacity:.75;letter-spacing:1px;margin-top:2px}
+  #claimBtn.dodge{transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+  #withdrawBtn{background:linear-gradient(180deg,var(--green),#12a35e);color:#fff;box-shadow:0 6px 0 #0a7d45,0 10px 22px rgba(33,208,122,.4);display:none}
+  #withdrawBtn:active{box-shadow:0 2px 0 #0a7d45}
+  .ghostbtn{background:#1c1c29;color:var(--dim);border:1px solid var(--line);border-radius:12px;padding:11px;font-size:13px;font-weight:700;cursor:pointer}
+
+  /* floating +amount */
+  .floatnum{position:absolute;font-weight:900;font-size:22px;pointer-events:none;animation:floatup 1s ease-out forwards;z-index:30}
+  @keyframes floatup{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-70px) scale(1.3)}}
+
+  /* ---- stats ---- */
+  .stats{display:flex;justify-content:space-around;padding:8px 10px;background:#11111c;border-top:1px solid var(--line);font-size:10px;color:var(--dim);text-align:center}
+  .stats b{display:block;color:#fff;font-size:14px;font-weight:800}
+
+  /* ---- overlays ---- */
+  .ov{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(5,5,10,.86);backdrop-filter:blur(3px)}
+  .ov.show{display:flex;animation:fade .2s}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{background:#181826;border:1px solid var(--line);border-radius:20px;padding:24px 22px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .modal h2{font-size:22px;margin-bottom:8px}
+  .modal p{font-size:14px;color:#d2d5e2;line-height:1.55;margin-bottom:16px}
+  .modal .big{font-size:42px;margin-bottom:6px}
+  .modal input{width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);background:#0e0e18;color:#fff;font-size:15px;margin-bottom:14px;text-align:center}
+  .modal .mbtn{width:100%;padding:14px;border:0;border-radius:13px;font-weight:800;font-size:16px;cursor:pointer;background:linear-gradient(180deg,var(--gold),var(--gold2));color:#1a1300;margin-top:4px}
+  .modal .mbtn.green{background:linear-gradient(180deg,var(--green),#12a35e);color:#fff}
+
+  /* fake crash / system overlay — mimics telegram dark UI */
+  #crashOv{background:#0e1621;align-items:center;justify-content:center;flex-direction:column;gap:18px}
+  #crashOv .spin{width:46px;height:46px;border:4px solid #2a3a4a;border-top-color:#64b5ef;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #crashOv .ct{color:#aab4c0;font-size:15px}
+  #crashOv .cs{color:#5a6b7a;font-size:12px}
+
+  /* update overlay */
+  #updateOv .ubar{height:10px;background:#222;border-radius:6px;overflow:hidden;margin:18px 0 6px}
+  #updateOv .ubar > i{display:block;height:100%;width:0;background:#64b5ef;transition:width .25s}
+
+  /* captcha */
+  .cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0 16px}
+  .cap-cell{aspect-ratio:1;background:#0e0e18;border:2px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;transition:.12s}
+  .cap-cell.sel{border-color:var(--gold);background:#2a2410}
+
+  /* confetti canvas */
+  #confetti{position:fixed;inset:0;z-index:99;pointer-events:none;display:none}
+
+  /* processing */
+  #procOv .pbar{height:12px;background:#222;border-radius:7px;overflow:hidden;margin:18px 0}
+  #procOv .pbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .3s}
+
+  .footnote{font-size:9px;color:#44475a;text-align:center;padding:4px}
+  .badge{display:inline-block;background:#2a2410;color:var(--gold);font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;border:1px solid #4a3d10;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="ava">🤑</div>
+    <div>
+      <div class="nm">Jackpot Jeff <span style="color:#64b5ef">✓</span></div>
+      <div class="st" id="hdrStatus">online · paying out now</div>
+    </div>
+    <div class="gear" id="gearBtn">⚙️</div>
+  </div>
+
+  <div class="balance-wrap">
+    <div class="bal-label">Your Balance</div>
+    <div><span class="bal" id="bal">0</span><span class="bal-unit">TON</span></div>
+    <div class="bal-fiat" id="fiat">≈ $0.00 USD</div>
+  </div>
+
+  <div class="meters">
+    <div>
+      <div class="meter">Withdrawal unlocks at 10,000 TON</div>
+      <div class="bar"><i id="progFill"></i></div>
+    </div>
+    <div>
+      <div class="meter">😤 Rage Meter</div>
+      <div class="bar"><i id="rageFill"></i></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="bubble" id="bubble">Welcome, friend! Tap CLAIM to collect your FREE TON! 🤑</div>
+    <svg id="jeff" viewBox="0 0 200 200" aria-label="Jeff"></svg>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="claimBtn">CLAIM FREE TON<span class="sub" id="claimSub">tap tap tap!</span></button>
+    <button class="btn" id="withdrawBtn">💰 WITHDRAW NOW</button>
+  </div>
+
+  <div class="stats">
+    <div><b id="sAtt">0</b>attempts</div>
+    <div><b id="sTaps">0</b>taps</div>
+    <div><b id="sTroll">0</b>times trolled</div>
+    <div><b id="sTime">0s</b>wasted</div>
+  </div>
+  <div class="footnote">Jackpot Jeff™ is a parody game. There is no real TON. There is no withdrawal. There was never going to be. 💀</div>
+</div>
+
+<!-- ===== OVERLAYS ===== -->
+<canvas id="confetti"></canvas>
+
+<div class="ov" id="crashOv">
+  <div class="spin"></div>
+  <div class="ct" id="crashText">Connection lost. Reconnecting…</div>
+  <div class="cs" id="crashSub">Telegram is trying to reach the server</div>
+</div>
+
+<div class="ov" id="updateOv">
+  <div class="modal">
+    <div class="big">⬇️</div>
+    <h2>Updating…</h2>
+    <p id="updMsg">A critical update is required to process your withdrawal.</p>
+    <div class="ubar"><i id="updBar"></i></div>
+    <p id="updPct" style="margin:0;color:var(--cyan);font-weight:800">0%</p>
+  </div>
+</div>
+
+<div class="ov" id="capOv">
+  <div class="modal">
+    <span class="badge">SECURITY CHECK</span>
+    <h2 id="capTitle">Prove you're human</h2>
+    <p id="capPrompt">Select all squares containing <b>Jeff's dignity</b>.</p>
+    <div class="cap-grid" id="capGrid"></div>
+    <button class="mbtn" id="capSubmit">Verify</button>
+  </div>
+</div>
+
+<div class="ov" id="withdrawOv">
+  <div class="modal">
+    <div class="big">🏦</div>
+    <h2>Withdraw your TON</h2>
+    <p>Enter your TON wallet address. Funds arrive <i>instantly*</i>.</p>
+    <input id="walletInput" placeholder="UQ… your TON address" autocomplete="off">
+    <button class="mbtn green" id="walletSubmit">Send my 10,000 TON →</button>
+    <p style="font-size:10px;color:#555;margin:12px 0 0">*instantly is a feeling, not a guarantee</p>
+  </div>
+</div>
+
+<div class="ov" id="procOv">
+  <div class="modal">
+    <div class="big">⏳</div>
+    <h2 id="procTitle">Processing withdrawal…</h2>
+    <div class="pbar"><i id="procBar"></i></div>
+    <p id="procMsg" style="margin:0">Contacting the blockchain…</p>
+  </div>
+</div>
+
+<div class="ov" id="rejectOv">
+  <div class="modal">
+    <div class="big">🚫</div>
+    <h2 style="color:var(--red)">Withdrawal Rejected</h2>
+    <p id="rejMsg">Reason: you blinked during the transaction.</p>
+    <button class="mbtn" id="rejBtn">Ugh, try again</button>
+  </div>
+</div>
+
+<div class="ov" id="settingsOv">
+  <div class="modal">
+    <div class="big">⚙️</div>
+    <h2>Settings</h2>
+    <p>Customize your suffering.</p>
+    <button class="ghostbtn" id="soundToggle" style="width:100%;margin-bottom:10px">🔊 Sound: ON</button>
+    <button class="ghostbtn" id="shareBtn" style="width:100%;margin-bottom:10px">📣 Drag a friend into this</button>
+    <button class="ghostbtn" id="resetBtn" style="width:100%;margin-bottom:14px">🗑️ Reset my progress</button>
+    <button class="mbtn" id="settingsClose">Close</button>
+  </div>
+</div>
+
+<div class="ov" id="introOv">
+  <div class="modal">
+    <div class="big">🤑</div>
+    <h2 id="introTitle">Hey there, friend!</h2>
+    <p id="introMsg">I'm Jeff. I'm giving away <b>10,000 FREE TON</b> to my first 1,000,000 friends — and YOU made it just in time! Just tap CLAIM. Easy money. Trust me. 😇</p>
+    <button class="mbtn" id="introBtn">LET'S GET RICH 🚀</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   JACKPOT JEFF — parody troll Telegram Mini App
+   Single file. Works standalone in any browser AND inside
+   Telegram (extra haptics, CloudStorage memory, native popups).
+   ============================================================ */
+
+/* ---------- Telegram wrapper (safe, with browser fallback) ---------- */
+const TG = (function () {
+  const wa = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  const inTG = !!(wa && wa.platform && wa.platform !== 'unknown' && wa.initData !== undefined);
+  function safe(fn){ try { return fn(); } catch (e) { /* swallow — never break the game */ } }
+  return {
+    raw: wa, inTG,
+    user(){ return (inTG && wa.initDataUnsafe && wa.initDataUnsafe.user) ? wa.initDataUnsafe.user : null; },
+    ready(){ if (inTG) safe(()=>{ wa.ready(); wa.expand(); if (wa.requestFullscreen) safe(()=>wa.requestFullscreen()); wa.setHeaderColor && safe(()=>wa.setHeaderColor('#17212b')); wa.setBackgroundColor && safe(()=>wa.setBackgroundColor('#0b0b14')); }); },
+    notify(type){ if (inTG && wa.HapticFeedback) safe(()=>wa.HapticFeedback.notificationOccurred(type)); },
+    impact(style){ if (inTG && wa.HapticFeedback) safe(()=>wa.HapticFeedback.impactOccurred(style)); },
+    select(){ if (inTG && wa.HapticFeedback) safe(()=>wa.HapticFeedback.selectionChanged()); },
+    // unified async storage: CloudStorage in TG, localStorage in browser
+    get(key, cb){
+      if (inTG && wa.CloudStorage){ safe(()=>wa.CloudStorage.getItem(key,(e,v)=>cb(e?null:v))); return; }
+      try { cb(localStorage.getItem(key)); } catch(e){ cb(null); }
+    },
+    set(key, val){
+      if (inTG && wa.CloudStorage){ safe(()=>wa.CloudStorage.setItem(key,String(val))); return; }
+      try { localStorage.setItem(key,String(val)); } catch(e){}
+    },
+    share(text){
+      if (inTG && wa.switchInlineQuery){ safe(()=>wa.switchInlineQuery(text,['users','groups'])); return true; }
+      return false;
+    }
+  };
+})();
+
+/* ---------- audio (WebAudio, starts on first gesture) ---------- */
+const SFX = (function(){
+  let ctx=null, on=true;
+  function ac(){ if(!ctx){ try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return ctx; }
+  function tone(freq,dur,type,vol){ if(!on)return; const c=ac(); if(!c)return; const o=c.createOscillator(),g=c.createGain(); o.type=type||'sine'; o.frequency.value=freq; g.gain.value=vol||0.08; o.connect(g); g.connect(c.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+(dur||0.15)); o.stop(c.currentTime+(dur||0.15)); }
+  return {
+    setOn(v){on=v;}, isOn(){return on;},
+    good(){ tone(880,0.09,'triangle',0.07); setTimeout(()=>tone(1320,0.09,'triangle',0.06),60); },
+    coin(){ tone(1568,0.06,'square',0.05); setTimeout(()=>tone(2093,0.08,'square',0.05),50); },
+    bad(){ tone(160,0.25,'sawtooth',0.09); },
+    buzz(){ tone(90,0.3,'sawtooth',0.1); },
+    win(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.18,'triangle',0.08),i*110)); }
+  };
+})();
+
+/* ---------- state ---------- */
+const S = {
+  balance: 0,
+  attempts: 0,
+  taps: 0,
+  trolled: 0,
+  rage: 0,          // 0..100
+  wasted: 0,        // seconds this device, total
+  sessionStart: null,
+  claimable: true,  // can the claim button be tapped right now
+  withdrawUnlocked: false,
+  trustTaps: 0,     // first taps are honest to build greed
+  busy: false       // an overlay sequence is running
+};
+const GOAL = 10000;
+const TON_USD = 5.12;
+
+/* ---------- taunts ---------- */
+const TAUNTS_GOOD = [
+  "Yes! Keep tapping, you beautiful genius!",
+  "Look at you go! Practically a millionaire!",
+  "That's it! The TON gods smile upon you!",
+  "Easy money, right? RIGHT?!",
+  "You're a natural at being rich!"
+];
+const TAUNTS_TROLL = [
+  "Oops! Network fee. You understand. 😇",
+  "Whoopsie — that one didn't count. Tap again!",
+  "SO close. Try harder, champ.",
+  "Did you really think it'd be that easy?",
+  "Skill issue, honestly.",
+  "My grandma claims faster than you.",
+  "I felt that tap. I chose to ignore it.",
+  "Error 404: your TON not found.",
+  "That tap went to MY wallet. Thanks!",
+  "Tap detected. Tap rejected. Tap mocked.",
+  "You're doing great! (I'm lying.)",
+  "Buffering your disappointment…",
+  "I gave that TON to a more deserving player.",
+  "Have you considered being better?",
+  "The TON was inside you all along. Just kidding."
+];
+const TAUNTS_RAGE = [
+  "Mad? You can't even quit properly.",
+  "Crying already? We just started.",
+  "Rage all you want. The button doesn't care.",
+  "I OWN your dopamine now.",
+  "Come back tomorrow. You will. You always do."
+];
+function pick(a){ return a[Math.floor((Date.now()*7+S.taps*13)%a.length)]; } // deterministic-ish, no Math.random needed at load
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const balEl=$('bal'), fiatEl=$('fiat'), bubble=$('bubble'), jeff=$('jeff');
+const progFill=$('progFill'), rageFill=$('rageFill');
+const claimBtn=$('claimBtn'), claimSub=$('claimSub'), withdrawBtn=$('withdrawBtn');
+const sAtt=$('sAtt'), sTaps=$('sTaps'), sTroll=$('sTroll'), sTime=$('sTime');
+
+/* ---------- Jeff SVG (sweaty grinning coin-man) ---------- */
+jeff.innerHTML = `
+  <defs>
+    <radialGradient id="coin" cx="40%" cy="35%"><stop offset="0%" stop-color="#ffe680"/><stop offset="100%" stop-color="#e6952b"/></radialGradient>
+  </defs>
+  <circle cx="100" cy="100" r="78" fill="url(#coin)" stroke="#b8741a" stroke-width="6"/>
+  <circle cx="100" cy="100" r="64" fill="none" stroke="#fff4cf" stroke-width="2" opacity=".6"/>
+  <!-- sunglasses -->
+  <rect x="46" y="78" width="44" height="26" rx="8" fill="#16161f"/>
+  <rect x="110" y="78" width="44" height="26" rx="8" fill="#16161f"/>
+  <rect x="88" y="86" width="24" height="6" fill="#16161f"/>
+  <rect x="52" y="83" width="14" height="7" rx="3" fill="#3a3a4a"/>
+  <!-- grin -->
+  <path id="mouth" d="M60 130 Q100 170 140 130 Q100 150 60 130 Z" fill="#7a3b00"/>
+  <path d="M62 131 Q100 150 138 131" fill="#fff"/>
+  <!-- sweat -->
+  <path id="sweat" d="M150 60 q-7 12 0 18 q7 -6 0 -18Z" fill="#7fd3ff" opacity=".9"/>
+  <!-- $ cheeks -->
+  <text x="40" y="120" font-size="20" fill="#c77d12" font-weight="bold">$</text>
+  <text x="150" y="120" font-size="20" fill="#c77d12" font-weight="bold">$</text>
+`;
+
+/* ---------- rendering ---------- */
+function fmt(n){ return Math.floor(n).toLocaleString('en-US'); }
+function render(){
+  balEl.textContent = fmt(S.balance);
+  fiatEl.textContent = '≈ $' + (S.balance*TON_USD).toLocaleString('en-US',{maximumFractionDigits:2}) + ' USD';
+  progFill.style.width = Math.min(100, (S.balance/GOAL)*100) + '%';
+  rageFill.style.width = Math.min(100, S.rage) + '%';
+  sAtt.textContent=S.attempts; sTaps.textContent=fmt(S.taps); sTroll.textContent=S.trolled;
+  sTime.textContent = fmtTime(S.wasted + sessionSecs());
+  // unlock withdraw
+  if (S.balance>=GOAL && !S.withdrawUnlocked){ S.withdrawUnlocked=true; withdrawBtn.style.display='block'; say("WHOA! You hit 10,000! Hit WITHDRAW, you legend! 🤑",'good'); TG.notify('success'); SFX.win(); }
+  if (S.balance<GOAL && S.withdrawUnlocked){ S.withdrawUnlocked=false; withdrawBtn.style.display='none'; }
+}
+function fmtTime(s){ s=Math.floor(s); if(s<60)return s+'s'; const m=Math.floor(s/60); return m+'m'+(s%60)+'s'; }
+function sessionSecs(){ return S.sessionStart? (Date.now()-S.sessionStart)/1000 : 0; }
+function say(t,mood){ bubble.textContent=t; if(mood==='troll'){jeff.classList.remove('shake');void jeff.offsetWidth;jeff.classList.add('shake');} }
+function popBal(){ balEl.classList.add('pop'); setTimeout(()=>balEl.classList.remove('pop'),120); }
+function floatNum(txt,color){
+  const r=claimBtn.getBoundingClientRect();
+  const el=document.createElement('div'); el.className='floatnum'; el.textContent=txt; el.style.color=color;
+  el.style.left=(r.left+r.width/2-20+ (((S.taps*37)%40)-20))+'px'; el.style.top=(r.top-10)+'px';
+  document.body.appendChild(el); setTimeout(()=>el.remove(),1000);
+}
+function addRage(n){ S.rage=Math.min(100,S.rage+n); if(S.rage>=100){ S.rage=100; setTimeout(rageEvent,400);} }
+
+/* ---------- persistence ---------- */
+function loadStats(done){
+  const keys=['jeff_att','jeff_taps','jeff_troll','jeff_wasted','jeff_seen','jeff_sound'];
+  let pending=keys.length, vals={};
+  keys.forEach(k=>TG.get(k,v=>{ vals[k]=v; if(--pending===0) apply(vals); }));
+  function apply(v){
+    S.attempts=+v.jeff_att||0; S.taps=+v.jeff_taps||0; S.trolled=+v.jeff_troll||0; S.wasted=+v.jeff_wasted||0;
+    if(v.jeff_sound==='0') SFX.setOn(false);
+    done(v.jeff_seen==='1');
+  }
+}
+function persist(){
+  TG.set('jeff_att',S.attempts); TG.set('jeff_taps',S.taps);
+  TG.set('jeff_troll',S.trolled); TG.set('jeff_wasted',Math.floor(S.wasted+sessionSecs()));
+}
+
+/* ---------- overlay helpers ---------- */
+function openOv(id){ $(id).classList.add('show'); }
+function closeOv(id){ $(id).classList.remove('show'); }
+
+/* ============================================================
+   CORE: the CLAIM button — honest at first, then betrayal
+   ============================================================ */
+function onClaim(ev){
+  if(S.busy||!S.claimable) return;
+  S.taps++; TG.select(); SFX.coin();
+
+  // First 4 taps: 100% honest — build the greed.
+  if(S.trustTaps<4){
+    S.trustTaps++;
+    const amt = [500,1200,2500,3300][S.trustTaps-1] || 800;
+    S.balance+=amt; popBal(); floatNum('+'+amt,'#21d07a'); TG.notify('success');
+    say(pick(TAUNTS_GOOD),'good'); render(); persist(); return;
+  }
+
+  // After trust is built → weighted troll roll (deterministic wheel, no RNG needed)
+  const roll = (S.taps*S.taps + 7*S.taps) % 100;
+
+  if(roll<38){                              // 38% honest-ish small add
+    const amt=Math.max(40, 600-(S.taps*3)); // payouts shrink over time
+    S.balance+=amt; popBal(); floatNum('+'+amt,'#21d07a'); TG.notify('success');
+    say(pick(TAUNTS_GOOD),'good');
+  } else if(roll<58){                        // 20% gas-fee subtract + LYING success haptic
+    const fee=Math.min(S.balance, 200+ (S.taps%5)*150);
+    S.balance-=fee; popBal(); floatNum('-'+fee,'#ff4d5e');
+    TG.notify('success');                     // <- haptic LIE: feels like a win
+    say(pick(TAUNTS_TROLL),'troll'); S.trolled++; addRage(7); SFX.bad();
+  } else if(roll<72){                         // 14% button dodges, tap doesn't count
+    S.taps--;                                 // refund the tap visually
+    dodge(); say(pick(TAUNTS_TROLL),'troll'); S.trolled++; addRage(6); TG.impact('rigid'); SFX.buzz();
+  } else if(roll<82){                         // 10% "almost" tease — adds then snatches
+    const amt=900; S.balance+=amt; popBal(); floatNum('+'+amt,'#21d07a'); render();
+    setTimeout(()=>{ S.balance-=amt; popBal(); floatNum('-'+amt,'#ff4d5e'); say("Just kidding. Gone. 😘",'troll'); S.trolled++; addRage(9); TG.notify('error'); SFX.bad(); render(); },520);
+  } else if(roll<90){                         // 8% fake crash
+    fakeCrash();
+  } else if(roll<96){                         // 6% fake update
+    fakeUpdate();
+  } else {                                    // 4% balance wipe
+    if(S.balance>1500){ balanceWipe(); }
+    else { const amt=400; S.balance+=amt; floatNum('+'+amt,'#21d07a'); say(pick(TAUNTS_GOOD),'good'); }
+  }
+  render(); persist();
+}
+
+/* button physically dodges the finger */
+function dodge(){
+  claimBtn.classList.add('dodge');
+  const dx=(((S.taps*53)%2)?1:-1)*(60+ (S.taps*7)%70);
+  const dy=-(30+ (S.taps*11)%50);
+  claimBtn.style.transform=`translate(${dx}px,${dy}px)`;
+  setTimeout(()=>{ claimBtn.style.transform=''; },650);
+  claimSub.textContent='catch me!';
+  setTimeout(()=>{ claimSub.textContent='tap tap tap!'; },800);
+}
+
+/* ---------- fake crash (mimics Telegram reconnecting) ---------- */
+function fakeCrash(){
+  S.busy=true; S.trolled++; addRage(11); TG.impact('heavy'); SFX.buzz();
+  $('crashText').textContent='Connection lost. Reconnecting…';
+  $('crashSub').textContent='Telegram is trying to reach the server';
+  openOv('crashOv');
+  setTimeout(()=>{ $('crashText').textContent='Still reconnecting…'; },1400);
+  setTimeout(()=>{ $('crashSub').textContent='(this is fake. so is your balance. 😘)'; },2600);
+  setTimeout(()=>{ closeOv('crashOv'); S.busy=false; say("Oh that? Just me. Carry on. 🤡",'troll'); jeff.classList.add('shake'); render(); persist(); },3600);
+}
+
+/* ---------- fake update ---------- */
+function fakeUpdate(){
+  S.busy=true; S.trolled++; addRage(10); TG.notify('warning');
+  $('updMsg').textContent='A critical update is required to process your withdrawal.';
+  const bar=$('updBar'), pct=$('updPct'); bar.style.width='0'; pct.textContent='0%';
+  openOv('updateOv');
+  let p=0;
+  const iv=setInterval(()=>{
+    p += (p<90? 7+(p%5) : 1);
+    if(p>=99){ p=99; clearInterval(iv); bar.style.width='99%'; pct.textContent='99%';
+      setTimeout(()=>{ $('updMsg').textContent='Update failed. Please try again never. 😂'; pct.textContent='99%'; },1100);
+      setTimeout(()=>{ closeOv('updateOv'); S.busy=false; say("Updates are like my promises. They never finish.",'troll'); render(); persist(); },2600);
+    } else { bar.style.width=p+'%'; pct.textContent=p+'%'; }
+  },220);
+}
+
+/* ---------- balance wipe ---------- */
+function balanceWipe(){
+  S.busy=true; const had=S.balance; S.trolled++; addRage(18); TG.notify('error'); SFX.bad();
+  say("SECURITY ALERT: suspicious activity. Confiscating "+fmt(had)+" TON. 🚨",'troll');
+  let steps=18; const per=had/steps;
+  const iv=setInterval(()=>{ S.balance=Math.max(0,S.balance-per); popBal(); render(); if(--steps<=0){ clearInterval(iv); S.balance=0; render(); persist(); S.busy=false; say("All gone! For your safety, obviously. 😇",'troll'); } },70);
+}
+
+/* ---------- rage meter maxed → mercy troll ---------- */
+function rageEvent(){
+  if(S.busy)return; S.busy=true;
+  TG.notify('error');
+  $('introTitle')==null;
+  showReject("Your rage has been noted and ignored. Here, have a 'mercy withdrawal'…", ()=>{ S.busy=false; fakeWin(); });
+}
+
+/* ---------- WITHDRAW flow ---------- */
+function startWithdraw(){
+  if(S.busy) return;
+  if(S.balance<GOAL){ say("You need 10,000 TON first. Keep tapping! 😈",'troll'); return; }
+  openOv('withdrawOv');
+}
+$('walletSubmit').onclick=()=>{
+  const w=$('walletInput').value.trim();
+  if(w.length<4){ TG.notify('error'); $('walletInput').placeholder='nice try, enter a REAL one 🙄'; return; }
+  closeOv('withdrawOv'); startCaptcha();
+};
+
+/* ---------- captcha (absurd, fails once then passes) ---------- */
+let capTries=0, capSelected=new Set();
+const CAP_PROMPTS=[
+  {t:"Select all squares containing <b>Jeff's dignity</b>.", e:['🍕','🚗','🌭','🐱','🚦','🍔','🌳','🚲','🛑']},
+  {t:"Tap every square with a <b>traffic light</b> (there are none).", e:['😀','😎','🤑','🥳','😇','😈','🤡','💀','👻']},
+  {t:"Select the squares that <b>love you back</b>.", e:['💔','💔','💔','💔','💔','💔','💔','💔','💔']}
+];
+function startCaptcha(){
+  capSelected.clear();
+  const idx=capTries%CAP_PROMPTS.length, c=CAP_PROMPTS[idx];
+  $('capPrompt').innerHTML=c.t;
+  const grid=$('capGrid'); grid.innerHTML='';
+  c.e.forEach((em,i)=>{ const d=document.createElement('div'); d.className='cap-cell'; d.textContent=em;
+    d.onclick=()=>{ TG.select(); if(capSelected.has(i)){capSelected.delete(i);d.classList.remove('sel');}else{capSelected.add(i);d.classList.add('sel');} };
+    grid.appendChild(d); });
+  openOv('capOv');
+}
+$('capSubmit').onclick=()=>{
+  capTries++;
+  closeOv('capOv');
+  if(capTries<2){ TG.notify('error'); SFX.bad(); showReject("CAPTCHA failed. You selected wrong. (There was no right.) Try again.",()=>startCaptcha()); }
+  else { capTries=0; startProcessing(); }
+};
+
+/* ---------- processing → rejection ---------- */
+function startProcessing(){
+  S.busy=true; openOv('procOv');
+  const bar=$('procBar'); bar.style.width='0';
+  const msgs=['Contacting the blockchain…','Verifying your wallet…','Counting your TON…','Asking Jeff for permission…','Jeff said no. Asking again…'];
+  let p=0,mi=0;
+  const iv=setInterval(()=>{
+    p+= (p<92? 6+(p%4):1); if(p>97)p=97;
+    bar.style.width=p+'%';
+    if(p>=20*(mi+1) && mi<msgs.length-1){ mi++; $('procMsg').textContent=msgs[mi]; }
+    if(p>=97){ clearInterval(iv);
+      setTimeout(()=>{ closeOv('procOv'); S.busy=false; doReject(); },1300);
+    }
+  },240);
+}
+const REJ_REASONS=[
+  "you blinked during the transaction.",
+  "your wallet smelled suspicious.",
+  "Mercury is in retrograde.",
+  "you breathed manually just now.",
+  "the blockchain is shy today.",
+  "you didn't say the magic word (there isn't one).",
+  "Jeff needed it more than you."
+];
+function doReject(){
+  S.attempts++; const had=S.balance;
+  TG.notify('error'); SFX.bad();
+  showReject("Reason: "+REJ_REASONS[S.attempts%REJ_REASONS.length]+" Your "+fmt(had)+" TON has been returned to Jeff.",()=>{
+    // wipe balance, reset trust so the grind restarts harder
+    S.balance=0; S.trustTaps=2; S.withdrawUnlocked=false; withdrawBtn.style.display='none';
+    addRage(20); render(); persist();
+    say("Attempt #"+S.attempts+" failed. Wanna go again? Of course you do. 😈",'troll');
+  });
+}
+function showReject(msg,cb){ $('rejMsg').textContent=msg; openOv('rejectOv'); $('rejBtn').onclick=()=>{ closeOv('rejectOv'); if(cb)cb(); }; }
+
+/* ---------- fake win + confetti, then the gut-punch ---------- */
+function fakeWin(){
+  S.busy=true; SFX.win(); TG.notify('success'); confettiBurst();
+  $('procTitle'); // noop
+  $('rejMsg'); // noop
+  $('introTitle');
+  // reuse reject modal styling via a custom modal? Use processing overlay area:
+  const ov=$('rejectOv'); $('rejMsg').textContent='';
+  $('rejMsg').innerHTML="<b style='color:#21d07a;font-size:18px'>🎉 YOU WON 10,000 TON! 🎉</b><br><br>Confirming in 3…";
+  openOv('rejectOv'); $('rejBtn').style.display='none';
+  let n=3; const iv=setInterval(()=>{ n--; $('rejMsg').innerHTML="<b style='color:#21d07a;font-size:18px'>🎉 YOU WON 10,000 TON! 🎉</b><br><br>Confirming in "+n+"…"; if(n<=0){ clearInterval(iv);
+    setTimeout(()=>{ stopConfetti(); $('rejMsg').innerHTML="<span style='font-size:40px'>😂</span><br><b style='color:#ff4d5e'>Just kidding.</b><br>You won nothing. You never will.";
+      $('rejBtn').style.display='block'; $('rejBtn').textContent='...fine.';
+      $('rejBtn').onclick=()=>{ closeOv('rejectOv'); S.busy=false; S.balance=0; S.rage=40; S.attempts++; render(); persist(); say(pick(TAUNTS_RAGE),'troll'); };
+      TG.notify('error'); SFX.bad();
+    },900);
+  } },800);
+}
+
+/* ---------- confetti ---------- */
+const cv=$('confetti'); let cctx, cParts=[], cAnim=null;
+function confettiBurst(){
+  cv.style.display='block'; cv.width=innerWidth; cv.height=innerHeight; cctx=cv.getContext('2d');
+  cParts=[]; const cols=['#ffd23f','#21d07a','#ff4d8d','#3ee6e0','#ff9f1c'];
+  for(let i=0;i<140;i++){ cParts.push({x:innerWidth/2,y:innerHeight/2,vx:(((i*37)%100)-50)/6,vy:(((i*53)%100)-70)/5,c:cols[i%cols.length],s:5+(i%6),r:i}); }
+  cancelAnimationFrame(cAnim); loopConfetti();
+}
+function loopConfetti(){
+  if(!cctx)return; cctx.clearRect(0,0,cv.width,cv.height);
+  cParts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.25; p.r+=6; cctx.save(); cctx.translate(p.x,p.y); cctx.rotate(p.r*Math.PI/180); cctx.fillStyle=p.c; cctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*1.6); cctx.restore(); });
+  cParts=cParts.filter(p=>p.y<cv.height+30);
+  if(cParts.length) cAnim=requestAnimationFrame(loopConfetti); else cv.style.display='none';
+}
+function stopConfetti(){ cParts=[]; if(cctx)cctx.clearRect(0,0,cv.width,cv.height); cv.style.display='none'; }
+
+/* ---------- settings ---------- */
+$('gearBtn').onclick=()=>{ $('soundToggle').textContent='🔊 Sound: '+(SFX.isOn()?'ON':'OFF'); openOv('settingsOv'); };
+$('settingsClose').onclick=()=>closeOv('settingsOv');
+$('soundToggle').onclick=()=>{ SFX.setOn(!SFX.isOn()); TG.set('jeff_sound',SFX.isOn()?'1':'0'); $('soundToggle').textContent='🔊 Sound: '+(SFX.isOn()?'ON':'OFF'); };
+$('shareBtn').onclick=()=>{
+  const txt="I found 10,000 FREE TON on Jackpot Jeff 🤑 come claim yours (you won't) 👉";
+  if(!TG.share(txt)){
+    try{ navigator.clipboard.writeText(location.href); }catch(e){}
+    alert("Link copied! Send it to a friend so Jeff can disappoint them too. 😈");
+  }
+};
+$('resetBtn').onclick=()=>{
+  S.balance=0;S.attempts=0;S.taps=0;S.trolled=0;S.rage=0;S.wasted=0;S.sessionStart=Date.now();S.trustTaps=0;S.withdrawUnlocked=false;
+  withdrawBtn.style.display='none'; TG.set('jeff_att',0);TG.set('jeff_taps',0);TG.set('jeff_troll',0);TG.set('jeff_wasted',0);TG.set('jeff_seen','1');
+  closeOv('settingsOv'); render(); say("Progress reset! Now you get to suffer again from scratch. You're welcome. 😇",'troll');
+};
+
+/* ---------- wire up ---------- */
+claimBtn.addEventListener('click',onClaim);
+withdrawBtn.addEventListener('click',startWithdraw);
+jeff.addEventListener('click',()=>{ TG.impact('light'); SFX.coin(); say(pick(TAUNTS_TROLL),'troll'); });
+$('introBtn').onclick=()=>{ closeOv('introOv'); SFX.good(); if(!SFX_started){startAudio();} };
+
+/* unlock audio context on first gesture (autoplay policies) */
+let SFX_started=false;
+function startAudio(){ SFX_started=true; SFX.coin(); }
+document.body.addEventListener('pointerdown',()=>{ if(!SFX_started){SFX_started=true;} },{once:true});
+
+/* ---------- boot ---------- */
+TG.ready();
+S.sessionStart=Date.now();
+loadStats((seenBefore)=>{
+  render();
+  if(seenBefore && (S.taps>0 || S.attempts>0)){
+    $('introTitle').textContent='Welcome back, friend. 🤑';
+    const deaths=S.trolled, att=S.attempts;
+    $('introMsg').innerHTML=`I remember you. You've tapped <b>${fmt(S.taps)}</b> times, I've trolled you <b>${deaths}</b> times, and you've failed to withdraw <b>${att}</b> times.<br><br>And yet… here you are again. 😈<br>Ready to lose some more?`;
+    $('introBtn').textContent="I hate that you're right 🚀";
+  }
+  TG.set('jeff_seen','1');
+  openOv('introOv');
+});
+
+/* tick: keep "time wasted" live + occasional unprompted taunt */
+setInterval(()=>{ render(); }, 1000);
+setInterval(()=>{ if(!S.busy && S.taps>3){ say(pick(S.rage>50?TAUNTS_RAGE:TAUNTS_TROLL), 'troll'); } }, 11000);
+
+/* save on exit */
+window.addEventListener('beforeunload',persist);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) persist(); });
+</script>
+</body>
+</html>
