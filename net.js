@@ -7,24 +7,47 @@
 (function () {
   'use strict';
 
-  // ---- shared ICE config for reliable NAT traversal -----------------------
-  // STUN (free, for direct connections) + Metered TURN relay (game-labs account)
-  // for players behind strict/mobile NATs. TURN is ICE's last resort, so it only
-  // consumes relay quota when a direct path can't be found.
-  var TURN_USER = '36f88ac897988038e74fd591';
-  var TURN_CRED = 'sZ/SncSl3zR0KUrC';
-  var PEER_CONFIG = {
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'turn:standard.relay.metered.ca:80', username: TURN_USER, credential: TURN_CRED },
-        { urls: 'turn:standard.relay.metered.ca:80?transport=tcp', username: TURN_USER, credential: TURN_CRED },
-        { urls: 'turn:standard.relay.metered.ca:443', username: TURN_USER, credential: TURN_CRED },
-        { urls: 'turns:standard.relay.metered.ca:443?transport=tcp', username: TURN_USER, credential: TURN_CRED }
-      ]
-    }
-  };
+  // ---- ICE config (NAT traversal) -----------------------------------------
+  // Fresh TURN credentials are minted at load from Cloudflare Realtime TURN
+  // (free 1 TB/mo). Cloudflare caps credential TTL at 48h, so we fetch at runtime
+  // instead of hardcoding. Google STUN + Metered TURN stay as a fallback if the
+  // Cloudflare fetch ever fails. TURN is ICE's last resort, so relay quota is
+  // only spent when a direct path can't be found. (The token is TURN-scoped:
+  // worst-case misuse = someone burning relay quota, not account access.)
+  var CF_TURN_KEY = 'de055d5d23b5ea426bf8fc5a2feff322';
+  var CF_TURN_TOKEN = 'f8e28b59bb885fa75efbfc2f9d4c7774b4264a392fe08e2896a5157e6bf17208';
+  var MET_USER = '36f88ac897988038e74fd591';
+  var MET_CRED = 'sZ/SncSl3zR0KUrC';
+
+  var FALLBACK_ICE = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'turn:standard.relay.metered.ca:80', username: MET_USER, credential: MET_CRED },
+    { urls: 'turn:standard.relay.metered.ca:443', username: MET_USER, credential: MET_CRED },
+    { urls: 'turns:standard.relay.metered.ca:443?transport=tcp', username: MET_USER, credential: MET_CRED }
+  ];
+
+  var PEER_CONFIG = { config: { iceServers: FALLBACK_ICE } };
+
+  // Fetch Cloudflare ICE servers once; resolve PEER_CONFIG before any Peer is made.
+  var _icePromise = null;
+  function ensureIce() {
+    if (_icePromise) return _icePromise;
+    var url = 'https://rtc.live.cloudflare.com/v1/turn/keys/' + CF_TURN_KEY +
+      '/credentials/generate-ice-servers';
+    _icePromise = fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + CF_TURN_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ttl: 86400 })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.iceServers && j.iceServers.length) {
+        // Cloudflare first; keep STUN/metered after as resilience.
+        PEER_CONFIG = { config: { iceServers: j.iceServers.concat(FALLBACK_ICE) } };
+      }
+      return PEER_CONFIG;
+    }).catch(function () { return PEER_CONFIG; });
+    return _icePromise;
+  }
 
   var CODE_PREFIX = 'glab-'; // namespaces our PeerJS ids so codes stay short
   var CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no confusing 0/O/1/I/L
@@ -46,7 +69,7 @@
     var onLeave = opts.onLeave || function () {};
     var onData = opts.onData || function () {};
 
-    return new Promise(function (resolve, reject) {
+    return ensureIce().then(function () { return new Promise(function (resolve, reject) {
       var attempts = 0;
       function tryHost() {
         var code = makeCode(4);
@@ -103,7 +126,7 @@
         });
       }
       tryHost();
-    });
+    }); });
   }
 
   // ============================ CLIENT =====================================
@@ -115,7 +138,7 @@
     var onError = opts.onError || function () {};
     var code = normalize(roomCode);
 
-    return new Promise(function (resolve, reject) {
+    return ensureIce().then(function () { return new Promise(function (resolve, reject) {
       var peer = new window.Peer(PEER_CONFIG); // random client id
       var settled = false;
 
@@ -181,7 +204,7 @@
         // broker dropped us; attempt a silent reconnect to keep signalling alive
         try { peer.reconnect(); } catch (e) {}
       });
-    });
+    }); });
   }
 
   // ============================ HELPERS ====================================
@@ -258,4 +281,7 @@
     share: share,
     toast: toast
   };
+
+  // Warm up TURN credentials immediately so they're ready before the first click.
+  try { ensureIce(); } catch (e) {}
 })();
