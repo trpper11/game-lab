@@ -8,21 +8,20 @@
   'use strict';
 
   // ---- shared ICE config for reliable NAT traversal -----------------------
+  // STUN (free, for direct connections) + Metered TURN relay (game-labs account)
+  // for players behind strict/mobile NATs. TURN is ICE's last resort, so it only
+  // consumes relay quota when a direct path can't be found.
+  var TURN_USER = '36f88ac897988038e74fd591';
+  var TURN_CRED = 'sZ/SncSl3zR0KUrC';
   var PEER_CONFIG = {
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
+        { urls: 'turn:standard.relay.metered.ca:80', username: TURN_USER, credential: TURN_CRED },
+        { urls: 'turn:standard.relay.metered.ca:80?transport=tcp', username: TURN_USER, credential: TURN_CRED },
+        { urls: 'turn:standard.relay.metered.ca:443', username: TURN_USER, credential: TURN_CRED },
+        { urls: 'turns:standard.relay.metered.ca:443?transport=tcp', username: TURN_USER, credential: TURN_CRED }
       ]
     }
   };
