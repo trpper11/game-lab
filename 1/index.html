@@ -180,7 +180,7 @@
 
     <div class="glab-spacer"></div>
     <div class="glab-sub" style="text-align:center;font-size:12px;opacity:.7">
-      Drag anywhere to steer · eat to grow · get eaten? respawn small · grab rule-flip orbs for chaos.
+      Drag anywhere to steer · eat to grow · dodge the spiky bouncers · grab power-ups (speed, shield, mass, x2) · arena gets faster the longer you survive.
     </div>
   </div>
 </div>
@@ -237,8 +237,25 @@ var MAX_PLAYERS = 10;
 var MIN_LIVE_BLOBS = 5;      // bots top up to this many
 var START_MASS = 12;
 var FOOD_MASS = 2.6;         // punchier growth per dot
-var ORB_INTERVAL = [9000, 15000];
-var POWER_DUR = { reverse:6000, ghost:5000, magnet:8000 };
+var ORB_INTERVAL = [4200, 7200];   // bonuses spawn much more often (was 9-15s)
+var MAX_ORBS = 6;                  // allow a few on the map at once (was 3)
+var POWER_DUR = { reverse:6000, ghost:5000, magnet:8000, speed:5500, shield:7000, score2x:9000 };
+// pickup kinds: rule-flip orbs + new power-ups. mass = instant, others are timed.
+var ORB_KINDS = ['reverse','ghost','magnet','speed','mass','shield','score2x'];
+var SPEED_BOOST_MULT = 1.55;       // SPEED BURST movement multiplier
+var MASS_BURST_GAIN  = 28;         // MASS BURST instant growth chunk
+
+// ----- bouncer hazards (neutral, host-simulated) -----
+var BOUNCER_COUNT = 5;             // neutral hazard balls drifting in the arena
+var BOUNCER_R = 34;                // collision radius (world units)
+var BOUNCER_SPEED = [90, 150];     // drift speed range (world u/s)
+var KNOCK_IMPULSE = 760;           // launch speed applied to a bounced blob
+var KNOCK_DAMP = 4.2;              // impulse decay rate (higher = shorter, ~0.6s)
+var KNOCK_COOLDOWN = 400;          // ms before the same pair can re-collide
+
+// ----- mega food (rare, high-value glowing dot) -----
+var MEGA_FOOD_MASS = 22;
+var MEGA_FOOD_CHANCE = 0.012;      // per food-respawn roll
 
 // ----- tournament match loop: Grow -> Collapse -> Winner -> new match -----
 var GROW_MS = 120000;        // 2 min open grow phase, full arena, no shrink
@@ -247,6 +264,8 @@ var GRACE_WARN_MS = 10000;   // show "collapse in 10..." countdown in last 10s o
 var RING_MIN = 140;          // ring never shrinks below this radius
 var OUT_DAMAGE_PER_S = 0.55; // fraction of mass lost per second while outside the ring
 var SPEED_RAMP_MAX = 1.9;    // global speed multiplier at full collapse
+var GROW_PACE_MAX = 1.35;    // gentle pace boost reached by end of a long GROW phase
+var GROW_PACE_FULL_MS = 90000; // time into grow at which GROW_PACE_MAX is reached
 var WIN_RESET_MS = 4200;     // delay after a winner before reseeding a new match
 
 var COLORS = ['#00e0ff','#ff2e93','#36e07a','#ffd34d','#b14bff','#ff7b3d','#41f0d0','#ff5ea0','#6c8cff','#a0ff4d'];
@@ -292,6 +311,9 @@ function sEat(){ beep(rand(420,520),0.12,'triangle',0.05); }
 function sKill(){ beep(180,0.18,'sawtooth',0.08); beep(90,0.3,'sine',0.06); }
 function sOrb(){ beep(660,0.1,'square',0.05); beep(990,0.12,'square',0.04); }
 function sDie(){ beep(140,0.5,'sawtooth',0.09); }
+function sBounce(){ beep(220,0.09,'square',0.08); beep(120,0.16,'sawtooth',0.07); }
+function sPower(){ beep(740,0.08,'triangle',0.06); beep(1120,0.12,'triangle',0.05); }
+function sShield(){ beep(520,0.14,'sine',0.06); beep(780,0.18,'sine',0.05); }
 
 // ---- escalating tension music for the COLLAPSE phase ----
 // Two detuned saw drones + a rhythmic pulse whose tempo & pitch rise with
@@ -587,6 +609,7 @@ function makeWorld(){
     blobs: {},          // id -> blob
     food: [],
     orbs: [],
+    bouncers: [],       // neutral hazard balls (host-simulated)
     nextOrbAt: Date.now()+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]),
     round: 1,           // tournament match number
     phase:'grow',       // 'grow' | 'collapse' | 'win'
@@ -601,13 +624,26 @@ function makeWorld(){
   };
   // food
   for(var i=0;i<FOOD_COUNT;i++) w.food.push(spawnFood(w));
+  // bouncer hazards
+  for(var bi=0;bi<BOUNCER_COUNT;bi++) w.bouncers.push(spawnBouncer(w, bi));
   // real players
   for(var id in players){ if(!players[id].isBot) addBlob(w, id, players[id]); }
   return w;
 }
+function spawnBouncer(w, idx){
+  var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*(WORLD*0.75);
+  var dir=Math.random()*Math.PI*2, sp=rand(BOUNCER_SPEED[0],BOUNCER_SPEED[1]);
+  return { id:'bz'+(idx!=null?idx:(Math.random()*9999|0)),
+    x:Math.cos(a)*r, y:Math.sin(a)*r,
+    vx:Math.cos(dir)*sp, vy:Math.sin(dir)*sp,
+    flash:0, cool:{} };
+}
 function spawnFood(w){
   var rr=Math.max(40, (w.ringR||w.radius)-30);
   var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*rr;
+  if(Math.random()<MEGA_FOOD_CHANCE){
+    return { x:Math.cos(a)*r, y:Math.sin(a)*r, m:MEGA_FOOD_MASS, c:'#ffe14d', mega:1 };
+  }
   return { x:Math.cos(a)*r, y:Math.sin(a)*r, m:FOOD_MASS, c:COLORS[(Math.random()*COLORS.length)|0] };
 }
 function safeSpawnPos(w){
@@ -628,6 +664,9 @@ function addBlob(w, id, meta){
     id:id, name:meta.name, color:meta.color, isBot:!!meta.isBot,
     x:p.x, y:p.y, m:START_MASS, hx:0, hy:0, alive:true,
     power:null, powerUntil:0, respawnAt:0,
+    ivx:0, ivy:0,                    // knockback impulse velocity (decays)
+    speedUntil:0, shieldUntil:0, score2xUntil:0, // timed power-ups
+    combo:0, comboUntil:0,           // eat-combo multiplier
     botTargetX:p.x, botTargetY:p.y, botRetargetAt:0
   };
 }
@@ -695,6 +734,7 @@ function hostTick(){
   for(var id in W.blobs){ var b=W.blobs[id]; if(b.isBot&&b.alive) botThink(b, now); }
   // movement + decay + eating
   moveBlobs(dt, now);
+  updateBouncers(dt, now);
   eatFood();
   eatOrbs(now);
   eatBlobs(now);
@@ -708,6 +748,9 @@ function hostTick(){
 function updatePhase(now){
   if(W.phase==='grow'){
     var toCollapse = W.collapseAt - now;
+    // gentle global pace boost the longer this match's grow phase runs (capped)
+    var elapsed = now - (W.collapseAt - GROW_MS);
+    W.speedMult = lerp(1, GROW_PACE_MAX, clamp(elapsed/GROW_PACE_FULL_MS, 0, 1));
     // grace countdown in the last 10s
     if(!W.graceWarnShown && toCollapse<=GRACE_WARN_MS){
       W.graceWarnShown=true;
@@ -723,7 +766,8 @@ function updatePhase(now){
     var prog = clamp((now - W.collapseStart)/COLLAPSE_MS, 0, 1);
     // shrink the ring + ramp global speed
     W.ringR = Math.max(RING_MIN, lerp(WORLD, RING_MIN, prog));
-    W.speedMult = lerp(1, SPEED_RAMP_MAX, prog);
+    // continue the pace ramp from where grow left off, up to the collapse max
+    W.speedMult = lerp(GROW_PACE_MAX, SPEED_RAMP_MAX, prog);
     // pull stray food back inside so it stays relevant
     var aliveCount=0, lastAlive=null;
     for(var id in W.blobs){ var b=W.blobs[id]; if(b.alive){ aliveCount++; lastAlive=b; } }
@@ -762,12 +806,17 @@ function resetMatch(now){
   // reseed food
   W.food.length=0;
   for(var i=0;i<FOOD_COUNT;i++) W.food.push(spawnFood(W));
+  // reseed bouncers
+  W.bouncers.length=0;
+  for(var bi=0;bi<BOUNCER_COUNT;bi++) W.bouncers.push(spawnBouncer(W, bi));
   // respawn every player + bot, small
   for(var id in W.blobs){
     var b=W.blobs[id];
     var p=safeSpawnPos(W);
     b.x=p.x; b.y=p.y; b.m=START_MASS; b.alive=true;
     b.hx=0; b.hy=0; b.power=null; b.powerUntil=0; b.respawnAt=0;
+    b.ivx=0; b.ivy=0; b.speedUntil=0; b.shieldUntil=0; b.score2xUntil=0;
+    b.combo=0; b.comboUntil=0;
     b.botTargetX=p.x; b.botTargetY=p.y; b.botRetargetAt=0;
   }
   fillBots(W);
@@ -790,6 +839,8 @@ function respawnDead(now){
       var p=safeSpawnPos(W);
       b.x=p.x; b.y=p.y; b.m=START_MASS; b.alive=true;
       b.hx=0; b.hy=0; b.power=null; b.powerUntil=0; b.respawnAt=0;
+      b.ivx=0; b.ivy=0; b.speedUntil=0; b.shieldUntil=0; b.score2xUntil=0;
+      b.combo=0; b.comboUntil=0;
       b.botTargetX=p.x; b.botTargetY=p.y; b.botRetargetAt=0;
       if(b.id===myId || (role==='host'&&b.id==='HOST')){ /* local revive handled in event */ }
       emitEvent({ e:'respawn', vid:b.id, x:p.x, y:p.y, c:b.color });
@@ -798,10 +849,11 @@ function respawnDead(now){
 }
 
 function updateOrbs(now){
-  if(now>=W.nextOrbAt && W.orbs.length<3){
-    var kinds=['reverse','ghost','magnet'];
-    var k=kinds[(Math.random()*kinds.length)|0];
-    var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*(W.radius*0.7);
+  if(now>=W.nextOrbAt && W.orbs.length<MAX_ORBS){
+    var k=ORB_KINDS[(Math.random()*ORB_KINDS.length)|0];
+    // spawn inside the current safe ring so pickups stay reachable
+    var rr=(W.ringR||W.radius)*0.7;
+    var a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*rr;
     W.orbs.push({ id:'o'+now+(Math.random()*99|0), kind:k, x:Math.cos(a)*r, y:Math.sin(a)*r });
     W.nextOrbAt=now+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]);
   }
@@ -810,19 +862,31 @@ function updateOrbs(now){
 function moveBlobs(dt, now){
   for(var id in W.blobs){
     var b=W.blobs[id]; if(!b.alive) continue;
-    // expire powers
+    // expire rule-flip powers + timed power-ups
     if(b.power && now>=b.powerUntil){ b.power=null; }
+    if(b.speedUntil && now>=b.speedUntil) b.speedUntil=0;
+    if(b.shieldUntil && now>=b.shieldUntil) b.shieldUntil=0;
+    if(b.score2xUntil && now>=b.score2xUntil) b.score2xUntil=0;
+    if(b.comboUntil && now>=b.comboUntil){ b.combo=0; b.comboUntil=0; }
     // faster overall pace; softened big-player slowdown so giants don't crawl.
     // gentler radius term + higher floor keeps everyone active. Same curve for bots.
     var speed = (340/(massRadius(b.m)*0.09+9));
     speed = clamp(speed, 70, 330);
-    speed *= (W.speedMult||1);   // global ramp during collapse
+    speed *= (W.speedMult||1);   // global match-pace ramp
+    if(b.speedUntil) speed *= SPEED_BOOST_MULT;   // SPEED BURST power-up
     var hmag=Math.sqrt(b.hx*b.hx+b.hy*b.hy);
     if(hmag>0.02){
       var ux=b.hx/Math.max(hmag,0.0001), uy=b.hy/Math.max(hmag,0.0001);
       var thr=clamp(hmag,0,1);
       b.x += ux*speed*thr*dt*3;
       b.y += uy*speed*thr*dt*3;
+    }
+    // knockback impulse (from bouncer hits) — applied on top of input, decays fast
+    if(b.ivx||b.ivy){
+      b.x += b.ivx*dt; b.y += b.ivy*dt;
+      var damp=Math.exp(-KNOCK_DAMP*dt);
+      b.ivx*=damp; b.ivy*=damp;
+      if(Math.abs(b.ivx)<6 && Math.abs(b.ivy)<6){ b.ivx=0; b.ivy=0; }
     }
     // magnet pulls food
     if(b.power==='magnet'){
@@ -859,6 +923,50 @@ function moveBlobs(dt, now){
   }
 }
 
+// ----- neutral bouncer hazards (host-simulated) -----
+function updateBouncers(dt, now){
+  var wallR = ((W.phase==='collapse') ? (W.ringR||WORLD) : WORLD) - BOUNCER_R - 6;
+  for(var i=0;i<W.bouncers.length;i++){
+    var z=W.bouncers[i];
+    z.x += z.vx*dt; z.y += z.vy*dt;
+    if(z.flash>0) z.flash=Math.max(0, z.flash-dt*3);
+    // bounce off the (current) arena/ring wall
+    var d=Math.sqrt(z.x*z.x+z.y*z.y);
+    if(d>wallR && d>0){
+      var nx=z.x/d, ny=z.y/d;
+      var dot=z.vx*nx+z.vy*ny;
+      z.vx -= 2*dot*nx; z.vy -= 2*dot*ny;
+      z.x=nx*wallR; z.y=ny*wallR;
+    }
+    // collide with blobs -> knockback (no eat, no kill)
+    for(var id in W.blobs){
+      var b=W.blobs[id]; if(!b.alive) continue;
+      var br=massRadius(b.m);
+      var hitR=BOUNCER_R+br;
+      var dx=b.x-z.x, dy=b.y-z.y, dd=dx*dx+dy*dy;
+      if(dd<hitR*hitR){
+        var lastHit=z.cool[id]||0;
+        if(now-lastHit < KNOCK_COOLDOWN) continue;
+        z.cool[id]=now;
+        // SHIELD absorbs the next knockback
+        if(b.shieldUntil && now<b.shieldUntil){
+          b.shieldUntil=0;
+          emitEvent({ e:'shieldpop', vid:b.id, x:b.x, y:b.y });
+          // nudge bouncer away so it doesn't immediately re-touch
+          var dn=Math.sqrt(dd)||1; z.vx -= (dx/dn)*40; z.vy -= (dy/dn)*40;
+          continue;
+        }
+        var dn2=Math.sqrt(dd)||1, nnx=dx/dn2, nny=dy/dn2;
+        b.ivx += nnx*KNOCK_IMPULSE; b.ivy += nny*KNOCK_IMPULSE;
+        // bouncer gets knocked the opposite way a bit
+        z.vx -= nnx*60; z.vy -= nny*60;
+        z.flash=1;
+        emitEvent({ e:'bounce', vid:b.id, x:b.x, y:b.y, c:b.color });
+      }
+    }
+  }
+}
+
 function eatFood(){
   for(var id in W.blobs){
     var b=W.blobs[id]; if(!b.alive) continue;
@@ -866,13 +974,30 @@ function eatFood(){
     for(var i=W.food.length-1;i>=0;i--){
       var f=W.food[i];
       if(dist2(b.x,b.y,f.x,f.y) < r*r){
-        b.m += f.m;
+        var gain=f.m * (b.score2xUntil&&Date.now()<b.score2xUntil ? 2 : 1);
+        b.m += gain;
         W.food.splice(i,1);
-        emitEvent({ e:'eatfood', x:f.x, y:f.y, c:f.c });
+        if(f.mega){ emitEvent({ e:'megafood', x:f.x, y:f.y, c:f.c, by:b.id, name:b.name }); }
+        else emitEvent({ e:'eatfood', x:f.x, y:f.y, c:f.c });
       }
     }
   }
 }
+// apply a picked-up orb/power-up to a blob (host-authoritative)
+function applyPickup(b, kind, now){
+  if(kind==='reverse' || kind==='ghost' || kind==='magnet'){
+    b.power=kind; b.powerUntil=now+POWER_DUR[kind];
+  } else if(kind==='speed'){
+    b.speedUntil=now+POWER_DUR.speed;
+  } else if(kind==='mass'){
+    b.m += MASS_BURST_GAIN;           // instant growth chunk
+  } else if(kind==='shield'){
+    b.shieldUntil=now+POWER_DUR.shield;
+  } else if(kind==='score2x'){
+    b.score2xUntil=now+POWER_DUR.score2x;
+  }
+}
+
 function eatOrbs(now){
   for(var id in W.blobs){
     var b=W.blobs[id]; if(!b.alive) continue;
@@ -880,7 +1005,7 @@ function eatOrbs(now){
     for(var i=W.orbs.length-1;i>=0;i--){
       var o=W.orbs[i];
       if(dist2(b.x,b.y,o.x,o.y) < (r+14)*(r+14)){
-        b.power=o.kind; b.powerUntil=now+POWER_DUR[o.kind];
+        applyPickup(b, o.kind, now);
         W.orbs.splice(i,1);
         emitEvent({ e:'orb', kind:o.kind, by:b.id, name:b.name, x:o.x, y:o.y });
       }
@@ -912,8 +1037,23 @@ function eatBlobs(now){
       var overlap=(ra*0.62)*(ra*0.62);
       if(dd<overlap){
         if(canEat(a,b)){
-          a.m += b.m*0.92; // punchier reward for a kill
+          // SHIELD on the victim absorbs one would-be death
+          if(b.shieldUntil && now<b.shieldUntil){
+            b.shieldUntil=0;
+            // bounce the victim clear so the eater can't instantly re-hit
+            var sdx=b.x-a.x, sdy=b.y-a.y, sdn=Math.sqrt(sdx*sdx+sdy*sdy)||1;
+            b.ivx += (sdx/sdn)*KNOCK_IMPULSE; b.ivy += (sdy/sdn)*KNOCK_IMPULSE;
+            emitEvent({ e:'shieldpop', vid:b.id, x:b.x, y:b.y });
+            continue;
+          }
+          // eat-combo multiplier: chain kills within a short window grow the reward
+          a.combo=(a.comboUntil&&now<a.comboUntil)?(a.combo+1):1;
+          a.comboUntil=now+4000;
+          var comboMul = 1 + Math.min(a.combo-1,4)*0.12;       // up to +48%
+          var scoreMul = (a.score2xUntil&&now<a.score2xUntil)?2:1;
+          a.m += b.m*0.92*comboMul*scoreMul; // punchier reward for a kill
           killBlob(b, a, now, 'eaten');
+          if(a.combo>=2) emitEvent({ e:'combo', vid:a.id, n:a.combo, x:a.x, y:a.y, c:a.color });
         }
       }
     }
@@ -939,10 +1079,16 @@ function broadcastState(now){
   var bl=[];
   for(var id in W.blobs){
     var b=W.blobs[id];
-    bl.push([id, Math.round(b.x), Math.round(b.y), Math.round(b.m*10)/10, b.color, b.name, b.alive?1:0, b.power||'', b.isBot?1:0]);
+    // index 9 = power-up flag bitmask (1=speed,2=shield,4=score2x), 10 = combo count
+    var fl=0;
+    if(b.speedUntil && now<b.speedUntil) fl|=1;
+    if(b.shieldUntil && now<b.shieldUntil) fl|=2;
+    if(b.score2xUntil && now<b.score2xUntil) fl|=4;
+    bl.push([id, Math.round(b.x), Math.round(b.y), Math.round(b.m*10)/10, b.color, b.name, b.alive?1:0, b.power||'', b.isBot?1:0, fl, (b.comboUntil&&now<b.comboUntil)?b.combo:0]);
   }
-  var fd=[]; for(var i=0;i<W.food.length;i++){ var f=W.food[i]; fd.push([Math.round(f.x),Math.round(f.y),f.c]); }
+  var fd=[]; for(var i=0;i<W.food.length;i++){ var f=W.food[i]; fd.push([Math.round(f.x),Math.round(f.y),f.c,f.mega?1:0]); }
   var or=[]; for(var k=0;k<W.orbs.length;k++){ var o=W.orbs[k]; or.push([Math.round(o.x),Math.round(o.y),o.kind]); }
+  var bz=[]; for(var z=0;z<W.bouncers.length;z++){ var zb=W.bouncers[z]; bz.push([Math.round(zb.x),Math.round(zb.y),Math.round((zb.flash||0)*100)/100]); }
   // time remaining in current phase (ms) for client HUD/countdown
   var tLeft;
   if(W.phase==='grow') tLeft=Math.max(0, W.collapseAt-now);
@@ -950,7 +1096,7 @@ function broadcastState(now){
   else tLeft=Math.max(0, W.winAt-now);
   var snap={ t:'state', ts:now, r:WORLD, ring:Math.round(W.ringR), phase:W.phase, round:W.round,
     tLeft:tLeft, spd:Math.round((W.speedMult||1)*100)/100,
-    bl:bl, fd:fd, or:or };
+    bl:bl, fd:fd, or:or, bz:bz };
   // host renders directly too
   applySnapshot(snap, true);
   net.broadcast(snap);
@@ -986,13 +1132,28 @@ function handleEvent(ev){
   if(ev.e==='eatfood'){
     burst(ev.x, ev.y, ev.c, 5, 1.0);
     sEat();
+  } else if(ev.e==='megafood'){
+    burst(ev.x, ev.y, '#ffe14d', 30, 2.8);
+    flash('#ffe14d');
+    if(ev.by===myId){ showBanner('MEGA FOOD', '+'+MEGA_FOOD_MASS+' mass!', '#ffe14d'); shake=Math.min(shake+6,18); }
+    sOrb(); beep(880,0.18,'triangle',0.07);
   } else if(ev.e==='orb'){
-    sOrb();
-    burst(ev.x, ev.y, orbColor(ev.kind), 26, 2.2);
-    var meName=(players[myId]&&players[myId].name)||myName;
     var mine = (ev.by===myId);
-    flash(orbColor(ev.kind));
+    if(ev.kind==='shield') sShield(); else if(ev.kind==='speed'||ev.kind==='mass'||ev.kind==='score2x') sPower(); else sOrb();
+    burst(ev.x, ev.y, orbColor(ev.kind), 26, 2.2);
+    if(mine) flash(orbColor(ev.kind));
     showBanner(orbLabel(ev.kind), (mine?'You grabbed it!':(ev.name+' grabbed it')), orbColor(ev.kind));
+  } else if(ev.e==='bounce'){
+    burst(ev.x, ev.y, '#ff8a3d', 22, 2.2);
+    if(ev.vid===myId){ shake=Math.min(shake+12, 26); flash('#ff8a3d'); showBanner('BOUNCED!', '', '#ff8a3d'); }
+    sBounce();
+  } else if(ev.e==='shieldpop'){
+    burst(ev.x, ev.y, '#5de1ff', 28, 2.4);
+    if(ev.vid===myId){ flash('#5de1ff'); showBanner('SHIELD!', 'Blocked it', '#5de1ff'); }
+    sShield();
+  } else if(ev.e==='combo'){
+    if(ev.vid===myId){ showBanner('COMBO x'+ev.n, 'Chain feast!', '#ffd34d'); beep(440+ev.n*80,0.12,'square',0.06); }
+    burst(ev.x, ev.y, ev.c||'#ffd34d', 14, 1.8);
   } else if(ev.e==='kill'){
     burst(ev.x, ev.y, ev.c, 30, 2.6);
     shake=Math.min(shake+10, 26);
@@ -1019,8 +1180,12 @@ function handleEvent(ev){
     showBanner('MATCH '+(ev.round||''), 'Grow phase — eat & grow!', '#00e0ff');
   }
 }
-function orbColor(k){ return k==='reverse'?'#ff2e93':(k==='ghost'?'#a0e0ff':'#ffd34d'); }
-function orbLabel(k){ return k==='reverse'?'REVERSE!':(k==='ghost'?'GHOST!':'MAGNET!'); }
+var ORB_COLORS={ reverse:'#ff2e93', ghost:'#a0e0ff', magnet:'#ffd34d', speed:'#36e07a', mass:'#ff7b3d', shield:'#5de1ff', score2x:'#b14bff' };
+var ORB_LABELS={ reverse:'REVERSE!', ghost:'GHOST!', magnet:'MAGNET!', speed:'SPEED BURST!', mass:'MASS BURST!', shield:'SHIELD!', score2x:'SCORE x2!' };
+var ORB_GLYPHS={ reverse:'⇄', ghost:'◌', magnet:'⊙', speed:'»', mass:'+', shield:'⛨', score2x:'×2' };
+function orbColor(k){ return ORB_COLORS[k]||'#ffd34d'; }
+function orbLabel(k){ return ORB_LABELS[k]||'BONUS!'; }
+function orbGlyph(k){ return ORB_GLYPHS[k]||'?'; }
 
 // ==================================================
 //  BOT AI
@@ -1064,6 +1229,18 @@ function botThink(b, now){
     if(now>=b.botRetargetAt){ var a=Math.random()*Math.PI*2, r=rand(0,(W.ringR||W.radius)*0.6);
       b.botTargetX=Math.cos(a)*r; b.botTargetY=Math.sin(a)*r; b.botRetargetAt=now+rand(1500,3000); }
     tx=b.botTargetX; ty=b.botTargetY;
+  }
+  // mildly avoid nearby bouncer hazards (nudge target away from the closest one)
+  if(W.bouncers){
+    var bestBz=null, bestBzD=1e18;
+    for(var zi=0;zi<W.bouncers.length;zi++){
+      var z=W.bouncers[zi]; var zd=dist2(b.x,b.y,z.x,z.y);
+      if(zd<bestBzD){ bestBzD=zd; bestBz=z; }
+    }
+    var avoidR=BOUNCER_R+massRadius(b.m)+150;
+    if(bestBz && bestBzD<avoidR*avoidR){
+      tx += (b.x-bestBz.x)*1.4; ty += (b.y-bestBz.y)*1.4;
+    }
   }
   var dx=tx-b.x, dy=ty-b.y, mag=Math.sqrt(dx*dx+dy*dy)||1;
   // add small jitter so bots feel alive
@@ -1164,11 +1341,13 @@ function findBlob(snap, id){
 function interpBlob(id, alpha){
   var c=findBlob(curSnap,id); if(!c) return null;
   var p=findBlob(prevSnap,id)||c;
+  var fl=c[9]||0;
   return {
     id:id,
     x: lerp(p[1], c[1], alpha),
     y: lerp(p[2], c[2], alpha),
-    m: c[3], color:c[4], name:c[5], alive:c[6]===1, power:c[7], isBot:c[8]===1
+    m: c[3], color:c[4], name:c[5], alive:c[6]===1, power:c[7], isBot:c[8]===1,
+    speed:(fl&1)!==0, shield:(fl&2)!==0, score2x:(fl&4)!==0, combo:c[10]||0
   };
 }
 
@@ -1210,13 +1389,15 @@ function render(){
 
   drawBackground();
   drawSafeRing(now);
-  drawFood();
+  drawFood(now);
   drawOrbs(now);
+  drawBouncers(now);
   drawBlobs(alpha, now);
   drawParticles();
 
   ctx.restore();
 
+  drawEdgeArrows(alpha, sx, sy);
   updateHUD(me, meMass);
   drawMinimap();
   syncMusic();
@@ -1283,6 +1464,18 @@ function drawMinimap(){
       miniCtx.lineWidth=1.8; miniCtx.strokeStyle='#fff'; miniCtx.stroke();
     }
   }
+  // bouncer hazards: neutral orange diamond markers
+  var bz=curSnap.bz;
+  if(bz){
+    for(var z=0;z<bz.length;z++){
+      var zx=cx+bz[z][0]*scale, zy=cy+bz[z][1]*scale;
+      miniCtx.save();
+      miniCtx.translate(zx,zy); miniCtx.rotate(Math.PI/4);
+      miniCtx.fillStyle='#ff8a3d';
+      miniCtx.fillRect(-2.5,-2.5,5,5);
+      miniCtx.restore();
+    }
+  }
 }
 
 function leaderBlob(alpha){
@@ -1339,12 +1532,26 @@ function drawSafeRing(now){
   ctx.restore();
 }
 
-function drawFood(){
+function drawFood(now){
   var f=curSnap.fd;
   for(var i=0;i<f.length;i++){
     var fx=f[i][0], fy=f[i][1];
     // cull off-screen
     if(Math.abs(fx-camera.x)>VW/camera.zoom || Math.abs(fy-camera.y)>VH/camera.zoom) continue;
+    if(f[i][3]){
+      // mega food: rare glowing high-value dot
+      var pul=0.6+0.4*Math.sin(now/160+i);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(fx,fy,15+pul*5,0,Math.PI*2);
+      ctx.fillStyle='#ffe14d'; ctx.globalAlpha=0.18; ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(fx,fy,9,0,Math.PI*2);
+      ctx.fillStyle='#ffe14d'; ctx.shadowColor='#ffe14d'; ctx.shadowBlur=22; ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle='#06060f'; ctx.font='900 11px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('★', fx, fy+1);
+      ctx.restore();
+      continue;
+    }
     ctx.beginPath(); ctx.arc(fx,fy,5,0,Math.PI*2);
     ctx.fillStyle=f[i][2]; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
   }
@@ -1365,9 +1572,112 @@ function drawOrbs(now){
     ctx.shadowBlur=0;
     // icon glyph
     ctx.fillStyle='#06060f'; ctx.font='900 14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(kind==='reverse'?'⇄':(kind==='ghost'?'◌':'⊙'), ox, oy+1);
+    ctx.fillText(orbGlyph(kind), ox, oy+1);
     ctx.restore();
   }
+}
+
+// neutral hazard balls — obviously-not-food, obviously-not-player look
+function drawBouncers(now){
+  var bz=curSnap.bz; if(!bz) return;
+  var pz=(prevSnap&&prevSnap.bz)||bz;
+  var alpha = clamp((performance.now()-snapTime)/TICK_MS, 0, 1.4);
+  for(var i=0;i<bz.length;i++){
+    var cx0=bz[i][0], cy0=bz[i][1], fl=bz[i][2]||0;
+    var px=(pz[i]?pz[i][0]:cx0), py=(pz[i]?pz[i][1]:cy0);
+    var x=lerp(px,cx0,alpha), y=lerp(py,cy0,alpha);
+    // cull
+    if(Math.abs(x-camera.x)-BOUNCER_R>VW/camera.zoom || Math.abs(y-camera.y)-BOUNCER_R>VH/camera.zoom) continue;
+    var R=BOUNCER_R;
+    var pulse=0.5+0.5*Math.sin(now/130+i);
+    var hot = fl>0;
+    var base = hot ? '#fff' : '#ff8a3d';
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(now/600 + i);
+    // outer hazard glow
+    ctx.beginPath(); ctx.arc(0,0,R+6+pulse*5,0,Math.PI*2);
+    ctx.fillStyle=base; ctx.globalAlpha=hot?0.4:0.16; ctx.fill(); ctx.globalAlpha=1;
+    // spiky chevron ring (8 triangles) — reads as "danger / obstacle"
+    var spikes=8;
+    ctx.fillStyle = hot ? '#ffffff' : '#ff8a3d';
+    ctx.shadowColor='#ff8a3d'; ctx.shadowBlur= hot?28:16;
+    for(var s=0;s<spikes;s++){
+      var a=(s/spikes)*Math.PI*2;
+      var r1=R+8+pulse*3, r2=R-2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a)*r1, Math.sin(a)*r1);
+      ctx.lineTo(Math.cos(a+0.32)*r2, Math.sin(a+0.32)*r2);
+      ctx.lineTo(Math.cos(a-0.32)*r2, Math.sin(a-0.32)*r2);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    // striped warning core
+    ctx.beginPath(); ctx.arc(0,0,R-3,0,Math.PI*2);
+    ctx.fillStyle = hot ? '#ffd34d' : '#2a1606'; ctx.fill();
+    ctx.lineWidth=4; ctx.strokeStyle='#ff8a3d';
+    ctx.beginPath(); ctx.arc(0,0,R-3,0,Math.PI*2); ctx.stroke();
+    // hazard chevrons inside
+    ctx.strokeStyle = '#ffd34d'; ctx.lineWidth=3;
+    for(var c=-1;c<=1;c++){
+      ctx.beginPath();
+      ctx.moveTo(-R*0.5, c*8+5); ctx.lineTo(0, c*8-3); ctx.lineTo(R*0.5, c*8+5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// off-screen player edge arrows (client render only, from the snapshot we have)
+var ARROW_MAX_DIST = 2200;   // world units beyond which no arrow shows
+function drawEdgeArrows(alpha, shx, shy){
+  if(!curSnap) return;
+  var me=interpBlob(myId, alpha);
+  if(!me || !me.alive) return;
+  // safe screen inset (portrait-safe; keep clear of joystick/thumb at bottom)
+  var insetT=70, insetSide=26, insetB=200;
+  var cxS=VW/2, cyS=VH/2;
+  for(var i=0;i<curSnap.bl.length;i++){
+    var raw=curSnap.bl[i];
+    if(raw[6]!==1) continue;            // alive only
+    if(raw[0]===myId) continue;         // not me
+    var ob=interpBlob(raw[0], alpha); if(!ob) continue;
+    // is it on-screen already? (then no arrow)
+    var dxw=ob.x-camera.x, dyw=ob.y-camera.y;
+    var halfW=(VW/2)/camera.zoom, halfH=(VH/2)/camera.zoom;
+    var r=massRadius(ob.m);
+    if(Math.abs(dxw)<halfW+r && Math.abs(dyw)<halfH+r) continue; // visible
+    var dist=Math.sqrt(dxw*dxw+dyw*dyw);
+    if(dist>ARROW_MAX_DIST) continue;   // too far -> no arrow
+    // direction from screen centre toward the player
+    var ang=Math.atan2(dyw, dxw);
+    // project to a point on the safe-inset rectangle edge
+    var dirx=Math.cos(ang), diry=Math.sin(ang);
+    var maxX=(VW/2)-insetSide, maxY=(VH/2)-insetT;
+    var maxYb=(VH/2)-insetB;
+    // scale ray to box edge (asymmetric bottom inset for the thumb)
+    var tX = dirx!==0 ? maxX/Math.abs(dirx) : 1e9;
+    var tY = diry<0 ? maxY/Math.abs(diry) : (diry>0 ? maxYb/Math.abs(diry) : 1e9);
+    var tt=Math.min(tX,tY);
+    var ex=cxS+dirx*tt+shx, ey=cyS+diry*tt+shy;
+    // nearer = bigger arrow; fade slightly by distance
+    var near=clamp(1-(dist/ARROW_MAX_DIST),0,1);
+    var size=8+near*12;
+    var al=0.35+near*0.55;
+    ctx.save();
+    ctx.translate(ex,ey);
+    ctx.rotate(ang);
+    ctx.globalAlpha=al;
+    ctx.fillStyle=ob.color;
+    ctx.shadowColor=ob.color; ctx.shadowBlur=10;
+    ctx.beginPath();
+    ctx.moveTo(size,0);
+    ctx.lineTo(-size*0.7, size*0.7);
+    ctx.lineTo(-size*0.7,-size*0.7);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
 }
 
 function drawBlobs(alpha, now){
@@ -1408,6 +1718,26 @@ function drawBlob(b, now){
   if(b.power==='magnet'){
     ctx.beginPath(); ctx.arc(b.x,b.y,r+ (10+6*Math.sin(now/120)),0,Math.PI*2);
     ctx.strokeStyle='rgba(255,211,77,0.5)'; ctx.lineWidth=2; ctx.stroke();
+  }
+  // SHIELD bubble
+  if(b.shield){
+    ctx.beginPath(); ctx.arc(b.x,b.y,r+8+2*Math.sin(now/110),0,Math.PI*2);
+    ctx.strokeStyle='rgba(93,225,255,'+(0.55+0.25*Math.sin(now/120))+')'; ctx.lineWidth=3;
+    ctx.shadowColor='#5de1ff'; ctx.shadowBlur=14; ctx.stroke(); ctx.shadowBlur=0;
+  }
+  // SPEED BURST motion ticks
+  if(b.speed){
+    ctx.strokeStyle='rgba(54,224,122,0.7)'; ctx.lineWidth=2;
+    for(var sp=0;sp<3;sp++){
+      var aa=now/90+sp*2.1;
+      ctx.beginPath(); ctx.arc(b.x,b.y,r+5+sp*4, aa, aa+0.9); ctx.stroke();
+    }
+  }
+  // SCORE x2 sparkle ring
+  if(b.score2x){
+    ctx.beginPath(); ctx.arc(b.x,b.y,r+5,0,Math.PI*2);
+    ctx.setLineDash([4,8]); ctx.lineDashOffset=now/30;
+    ctx.strokeStyle='rgba(177,75,255,0.8)'; ctx.lineWidth=2.5; ctx.stroke(); ctx.setLineDash([]);
   }
   // eyes (cute)
   var ex=r*0.32, ey=-r*0.1, eR=Math.max(2.4, r*0.16);
@@ -1478,10 +1808,14 @@ function updateHUD(me, meMass){
       +'<span class="nm">'+escapeHtml(b[5])+'</span><span class="ms">'+Math.round(b[3])+'</span></div>';
   }
   $('boardRows').innerHTML=rows;
-  // power chips
+  // power chips (rule-flip orb + active timed power-ups)
   var chips='';
-  if(me && me.alive && me.power){
-    chips='<div class="pchip" style="color:'+orbColor(me.power)+'">'+orbLabel(me.power)+'</div>';
+  if(me && me.alive){
+    if(me.power) chips+='<div class="pchip" style="color:'+orbColor(me.power)+'">'+orbLabel(me.power)+'</div>';
+    if(me.speed) chips+='<div class="pchip" style="color:'+orbColor('speed')+'">SPEED</div>';
+    if(me.shield) chips+='<div class="pchip" style="color:'+orbColor('shield')+'">SHIELD</div>';
+    if(me.score2x) chips+='<div class="pchip" style="color:'+orbColor('score2x')+'">SCORE x2</div>';
+    if(me.combo>=2) chips+='<div class="pchip" style="color:#ffd34d">COMBO x'+me.combo+'</div>';
   }
   if(chips!==lastChips){ $('powerChips').innerHTML=chips; lastChips=chips; }
 }
