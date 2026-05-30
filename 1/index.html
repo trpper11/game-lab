@@ -237,11 +237,11 @@ var MAX_PLAYERS = 10;
 var MIN_LIVE_BLOBS = 5;      // bots top up to this many
 var START_MASS = 12;
 var FOOD_MASS = 2.6;         // punchier growth per dot
-var ORB_INTERVAL = [4200, 7200];   // bonuses spawn much more often (was 9-15s)
-var MAX_ORBS = 6;                  // allow a few on the map at once (was 3)
-var POWER_DUR = { reverse:6000, ghost:5000, magnet:8000, speed:5500, shield:7000, score2x:9000 };
+var ORB_INTERVAL = [1700, 2900];   // bonuses spawn ~2.5x more often (was 4.2-7.2s)
+var MAX_ORBS = 15;                 // allow a lot more on the map at once (was 6)
+var POWER_DUR = { reverse:6000, ghost:5000, magnet:8000, speed:5500, shield:7000, score2x:9000, freeze:3200, blast:0 };
 // pickup kinds: rule-flip orbs + new power-ups. mass = instant, others are timed.
-var ORB_KINDS = ['reverse','ghost','magnet','speed','mass','shield','score2x'];
+var ORB_KINDS = ['reverse','ghost','magnet','speed','mass','shield','score2x','freeze','drain','blast'];
 var SPEED_BOOST_MULT = 1.55;       // SPEED BURST movement multiplier
 var MASS_BURST_GAIN  = 28;         // MASS BURST instant growth chunk
 
@@ -612,6 +612,12 @@ function makeWorld(){
     bouncers: [],       // neutral hazard balls (host-simulated)
     nextOrbAt: Date.now()+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]),
     round: 1,           // tournament match number
+    // per-round difficulty (round 1 / tier 0 = baseline behavior)
+    growMs: GROW_MS,
+    collapseMs: COLLAPSE_MS,
+    speedRampMax: SPEED_RAMP_MAX,
+    minLive: MIN_LIVE_BLOBS,
+    outDmg: OUT_DAMAGE_PER_S,
     phase:'grow',       // 'grow' | 'collapse' | 'win'
     collapseAt: Date.now()+GROW_MS,  // wall-clock time the collapse begins
     collapseStart: 0,   // set when collapse actually starts
@@ -666,6 +672,7 @@ function addBlob(w, id, meta){
     power:null, powerUntil:0, respawnAt:0,
     ivx:0, ivy:0,                    // knockback impulse velocity (decays)
     speedUntil:0, shieldUntil:0, score2xUntil:0, // timed power-ups
+    frozenUntil:0,                   // frozen by another blob's FREEZE orb
     combo:0, comboUntil:0,           // eat-combo multiplier
     botTargetX:p.x, botTargetY:p.y, botRetargetAt:0
   };
@@ -674,8 +681,9 @@ function fillBots(w){
   // count every blob slot (alive OR pending respawn) so we don't spawn endless bots
   var slots=0; for(var id in w.blobs){ var bb=w.blobs[id]; if(bb.alive || bb.respawnAt) slots++; }
   var realCount=0; for(var k in players){ if(!players[k].isBot) realCount++; }
-  var need = Math.max(MIN_LIVE_BLOBS, Math.min(MAX_PLAYERS, realCount+ (realCount<2? rand(3,5)|0 : 1) ));
-  need = Math.max(need, MIN_LIVE_BLOBS);
+  var minLive = (w.minLive||MIN_LIVE_BLOBS);
+  var need = Math.max(minLive, Math.min(MAX_PLAYERS, realCount+ (realCount<2? rand(3,5)|0 : 1) ));
+  need = Math.max(need, minLive);
   need = Math.min(need, MAX_PLAYERS);
   var live=slots;
   while(live < need){
@@ -749,7 +757,7 @@ function updatePhase(now){
   if(W.phase==='grow'){
     var toCollapse = W.collapseAt - now;
     // gentle global pace boost the longer this match's grow phase runs (capped)
-    var elapsed = now - (W.collapseAt - GROW_MS);
+    var elapsed = now - (W.collapseAt - W.growMs);
     W.speedMult = lerp(1, GROW_PACE_MAX, clamp(elapsed/GROW_PACE_FULL_MS, 0, 1));
     // grace countdown in the last 10s
     if(!W.graceWarnShown && toCollapse<=GRACE_WARN_MS){
@@ -763,11 +771,11 @@ function updatePhase(now){
       emitEvent({ e:'collapse' });
     }
   } else if(W.phase==='collapse'){
-    var prog = clamp((now - W.collapseStart)/COLLAPSE_MS, 0, 1);
+    var prog = clamp((now - W.collapseStart)/W.collapseMs, 0, 1);
     // shrink the ring + ramp global speed
     W.ringR = Math.max(RING_MIN, lerp(WORLD, RING_MIN, prog));
     // continue the pace ramp from where grow left off, up to the collapse max
-    W.speedMult = lerp(GROW_PACE_MAX, SPEED_RAMP_MAX, prog);
+    W.speedMult = lerp(GROW_PACE_MAX, W.speedRampMax, prog);
     // pull stray food back inside so it stays relevant
     var aliveCount=0, lastAlive=null;
     for(var id in W.blobs){ var b=W.blobs[id]; if(b.alive){ aliveCount++; lastAlive=b; } }
@@ -790,15 +798,28 @@ function updatePhase(now){
   }
 }
 
+// difficulty tier rises each round, caps at round 7+ (tier 6)
+function roundTier(){ return Math.min((W.round||1)-1, 6); }
+// recompute per-round difficulty knobs from the current round/tier
+function applyRoundDifficulty(){
+  var tier=roundTier();
+  W.growMs      = Math.max(55000, GROW_MS - tier*11000);
+  W.collapseMs  = Math.max(26000, COLLAPSE_MS - tier*4000);
+  W.speedRampMax= SPEED_RAMP_MAX + tier*0.08;
+  W.minLive     = Math.min(MAX_PLAYERS, MIN_LIVE_BLOBS + Math.ceil(tier/2));
+  W.outDmg      = OUT_DAMAGE_PER_S * (1 + tier*0.12);
+}
+
 // fresh tournament match: reseed food, respawn everyone, back to GROW
 function resetMatch(now){
   W.round += 1;
+  applyRoundDifficulty();
   W.phase='grow';
   W.ringR=WORLD;
   W.speedMult=1;
   W.winnerId=null; W.winAt=0;
   W.collapseStart=0;
-  W.collapseAt=now+GROW_MS;
+  W.collapseAt=now+W.growMs;
   W.collapseBannerShown=false;
   W.graceWarnShown=false;
   W.nextOrbAt=now+rand(ORB_INTERVAL[0],ORB_INTERVAL[1]);
@@ -806,9 +827,10 @@ function resetMatch(now){
   // reseed food
   W.food.length=0;
   for(var i=0;i<FOOD_COUNT;i++) W.food.push(spawnFood(W));
-  // reseed bouncers
+  // reseed bouncers (more hazards each round, capped at +6)
   W.bouncers.length=0;
-  for(var bi=0;bi<BOUNCER_COUNT;bi++) W.bouncers.push(spawnBouncer(W, bi));
+  var bcount=Math.min(BOUNCER_COUNT+6, BOUNCER_COUNT+roundTier());
+  for(var bi=0;bi<bcount;bi++) W.bouncers.push(spawnBouncer(W, bi));
   // respawn every player + bot, small
   for(var id in W.blobs){
     var b=W.blobs[id];
@@ -820,8 +842,10 @@ function resetMatch(now){
     b.botTargetX=p.x; b.botTargetY=p.y; b.botRetargetAt=0;
   }
   fillBots(W);
-  emitEvent({ e:'newmatch', round:W.round });
+  var rnm=ROUND_NAMES[Math.min(W.round-1, ROUND_NAMES.length-1)];
+  emitEvent({ e:'newmatch', round:W.round, title:rnm });
 }
+var ROUND_NAMES=['WARM-UP','HEATING UP','NO MERCY','DANGER ZONE','FRENZY','MAYHEM','SUDDEN DEATH','APEX PREDATOR'];
 
 function topUpFood(){
   if(W.food.length<FOOD_COUNT){
@@ -867,6 +891,7 @@ function moveBlobs(dt, now){
     if(b.speedUntil && now>=b.speedUntil) b.speedUntil=0;
     if(b.shieldUntil && now>=b.shieldUntil) b.shieldUntil=0;
     if(b.score2xUntil && now>=b.score2xUntil) b.score2xUntil=0;
+    if(b.frozenUntil && now>=b.frozenUntil) b.frozenUntil=0;
     if(b.comboUntil && now>=b.comboUntil){ b.combo=0; b.comboUntil=0; }
     // faster overall pace; softened big-player slowdown so giants don't crawl.
     // gentler radius term + higher floor keeps everyone active. Same curve for bots.
@@ -874,7 +899,9 @@ function moveBlobs(dt, now){
     speed = clamp(speed, 70, 330);
     speed *= (W.speedMult||1);   // global match-pace ramp
     if(b.speedUntil) speed *= SPEED_BOOST_MULT;   // SPEED BURST power-up
-    var hmag=Math.sqrt(b.hx*b.hx+b.hy*b.hy);
+    // FREEZE: this blob can't drive its own movement (knockback still applies below)
+    var frozen=(b.frozenUntil && now<b.frozenUntil);
+    var hmag=frozen?0:Math.sqrt(b.hx*b.hx+b.hy*b.hy);
     if(hmag>0.02){
       var ux=b.hx/Math.max(hmag,0.0001), uy=b.hy/Math.max(hmag,0.0001);
       var thr=clamp(hmag,0,1);
@@ -909,7 +936,7 @@ function moveBlobs(dt, now){
         // hard push so they can't outrun the closing ring forever
         var pushK=Math.max(ringR/Math.max(d2,1), 0.985);
         b.x*=pushK; b.y*=pushK;
-        b.m -= b.m*OUT_DAMAGE_PER_S*dt;
+        b.m -= b.m*(W.outDmg||OUT_DAMAGE_PER_S)*dt;
         if(b.m<=START_MASS*0.5){ killBlob(b, null, now, 'collapse'); continue; }
       }
       // absolute outer wall = base arena so nobody escapes the canvas
@@ -995,6 +1022,30 @@ function applyPickup(b, kind, now){
     b.shieldUntil=now+POWER_DUR.shield;
   } else if(kind==='score2x'){
     b.score2xUntil=now+POWER_DUR.score2x;
+  } else if(kind==='freeze'){
+    // freeze every OTHER alive blob in place for the duration
+    for(var fid in W.blobs){
+      var o=W.blobs[fid]; if(o===b || !o.alive) continue;
+      o.frozenUntil=now+POWER_DUR.freeze;
+    }
+  } else if(kind==='drain'){
+    // reverse-counting: drain mass from every OTHER alive blob, picker eats half
+    for(var did in W.blobs){
+      var od=W.blobs[did]; if(od===b || !od.alive) continue;
+      var d=Math.min(od.m*0.18, 22);
+      od.m=Math.max(START_MASS*0.6, od.m-d);
+      b.m += d*0.5;
+    }
+  } else if(kind==='blast'){
+    // radial knockback bomb: shove nearby OTHER alive blobs away from picker
+    for(var bid2 in W.blobs){
+      var ob=W.blobs[bid2]; if(ob===b || !ob.alive) continue;
+      var dx=ob.x-b.x, dy=ob.y-b.y, dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist>340) continue;
+      var dn=dist||1, dirx=dx/dn, diry=dy/dn;
+      var sc=clamp(1-dist/340, 0.25, 1);
+      ob.ivx += dirx*420*sc; ob.ivy += diry*420*sc;
+    }
   }
 }
 
@@ -1177,12 +1228,13 @@ function handleEvent(ev){
     showWin(ev.name, ev.vid);
   } else if(ev.e==='newmatch'){
     hideWin(); hideDead();
-    showBanner('MATCH '+(ev.round||''), 'Grow phase — eat & grow!', '#00e0ff');
+    var subt = ev.title ? ('ROUND '+(ev.round||'')+' · '+ev.title) : 'Grow phase — eat & grow!';
+    showBanner('MATCH '+(ev.round||''), subt, '#00e0ff');
   }
 }
-var ORB_COLORS={ reverse:'#ff2e93', ghost:'#a0e0ff', magnet:'#ffd34d', speed:'#36e07a', mass:'#ff7b3d', shield:'#5de1ff', score2x:'#b14bff' };
-var ORB_LABELS={ reverse:'REVERSE!', ghost:'GHOST!', magnet:'MAGNET!', speed:'SPEED BURST!', mass:'MASS BURST!', shield:'SHIELD!', score2x:'SCORE x2!' };
-var ORB_GLYPHS={ reverse:'⇄', ghost:'◌', magnet:'⊙', speed:'»', mass:'+', shield:'⛨', score2x:'×2' };
+var ORB_COLORS={ reverse:'#ff2e93', ghost:'#a0e0ff', magnet:'#ffd34d', speed:'#36e07a', mass:'#ff7b3d', shield:'#5de1ff', score2x:'#b14bff', freeze:'#7fe9ff', drain:'#ff5fa2', blast:'#ff8a3d' };
+var ORB_LABELS={ reverse:'REVERSE!', ghost:'GHOST!', magnet:'MAGNET!', speed:'SPEED BURST!', mass:'MASS BURST!', shield:'SHIELD!', score2x:'SCORE x2!', freeze:'FREEZE', drain:'DRAIN', blast:'BLAST' };
+var ORB_GLYPHS={ reverse:'⇄', ghost:'◌', magnet:'⊙', speed:'»', mass:'+', shield:'⛨', score2x:'×2', freeze:'❄', drain:'▼', blast:'✸' };
 function orbColor(k){ return ORB_COLORS[k]||'#ffd34d'; }
 function orbLabel(k){ return ORB_LABELS[k]||'BONUS!'; }
 function orbGlyph(k){ return ORB_GLYPHS[k]||'?'; }
